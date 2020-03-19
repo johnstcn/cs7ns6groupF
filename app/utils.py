@@ -1,5 +1,8 @@
 from room.room import Room
+from network_interface.network_interface import Network
 
+# from room import *
+# from network_interface import *
 
 room_config = {
     1: 'Hamilton',
@@ -39,10 +42,21 @@ def list_all_bookings(list_of_rooms):
 
 
 def book_room_at_time(list_of_rooms, room, time):
-    print(list_of_rooms[room].book_time(time))
+    if room in list_of_rooms:
+        print(list_of_rooms[room].book_time(time))
+    else:
+        print("Invalid Room")
 
 
 def del_book_room_at_time(list_of_rooms, room, time):
     print(list_of_rooms[room].del_book_time(time))
 
+
+def setup_network_interface(network_id):
+    print("|---* Initialising Network *---|")
+    return Network(network_id)
+
+
+def add_connection(my_interface, connection_id):
+    my_interface.add_connection(connection_id)
 

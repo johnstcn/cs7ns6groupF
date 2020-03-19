@@ -2,6 +2,10 @@
 Repo to hold code for CS7NS6 Group F Project
 
 # Notes
+### How to run:
+- cd app
+- python main.py
+
 ### main.py
 - Entry Point
 - Planned to be where while loop runs to idle state waiting for new inputs

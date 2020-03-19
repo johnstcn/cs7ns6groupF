@@ -18,7 +18,7 @@ class Room:
         if time in self.available_hours:
             index = self.available_hours.index(time)
             self.available_hours.pop(index)
-            return "OK BOOKED: " + str(time) + "in" + str(self.room_name)
+            return "OK BOOKED: " + str(time) + " in " + str(self.room_name)
         else:
             return "SORRY THAT TIME IS UNAVAILABLE"
 
@@ -27,8 +27,8 @@ class Room:
         print("|---* DELETING BOOKING *---|")
         print("YOU ARE DELETING A BOOKING AT", time, "in", str(self.room_name))
         list_of_booked = self.get_booked_hours()
-        if time in FIXED_HOURS:                                # If time is within our fixed hours lists
-            if time in list_of_booked:                         # If time is in booked hours (that it is possible to delete)
+        if time in FIXED_HOURS:                            # If time is within our fixed hours lists
+            if time in list_of_booked:                     # If time is in booked hours (that it is possible to delete)
                 self.available_hours.append(time)
                 self.available_hours.sort()
                 print(self.available_hours)
