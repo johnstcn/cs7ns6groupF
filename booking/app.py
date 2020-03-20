@@ -1,8 +1,8 @@
 from flask import render_template, session, redirect, url_for, request
 from flask_bootstrap import Bootstrap
 from flask_admin import Admin
-from api.login import LoginForm
-from api.search import SearchForm
+from forms.login import LoginForm
+from forms.search import SearchForm
 from database import create_app
 from models import *
 import config
