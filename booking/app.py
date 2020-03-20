@@ -1,4 +1,4 @@
-from flask import render_template, session, redirect, url_for, request
+from flask import render_template, session, redirect, url_for, request, abort, jsonify
 from flask_bootstrap import Bootstrap
 from flask_admin import Admin
 from forms.login import LoginForm
@@ -10,6 +10,32 @@ import config
 app = create_app(config)
 Bootstrap(app)
 admin = Admin(app, name='Booking', template_mode='bootstrap3')
+
+
+@app.route('/api/rooms')
+def list_rooms():
+    return jsonify(message='list_rooms not implemented'), 501
+
+
+@app.route('/api/bookings')
+def list_bookings():
+    return jsonify(message='list_bookings not implemented'), 501
+
+
+@app.route('/api/bookings/<RoomID>', methods=['GET', 'POST'])
+def bookings(RoomID):
+    if request.method == 'GET':
+        return handle_bookings_get(RoomID)
+    else:
+        return handle_bookings_post(RoomID)
+
+
+def handle_bookings_get(RoomID):
+    return jsonify(message='handle_bookings_get not implemented'), 501
+
+
+def handle_bookings_post(RoomID):
+    return jsonify(message='handle_bookings_post not implemented'), 501
 
 
 @app.route('/user/<name>')
