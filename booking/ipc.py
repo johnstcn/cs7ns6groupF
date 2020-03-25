@@ -13,7 +13,6 @@ LOG.setLevel(logging.DEBUG)
 ELECTION = b"vote"
 HEALTHCHECK = b"ok?"
 VICTORY = b"vctr"
-OK = b"ok"
 WHOISLEADER = b"ldr?"
 
 ACK = b"ack"
@@ -37,7 +36,7 @@ class Process(object):
         self.peers = peers
         self.election = False
         self.leader_id = None
-        self.multicaster = Multicaster(peers[:id] + peers[id + 1 :])
+        self.multicaster = Multicaster()
 
     """
     am_leader returns True if a leader ID is known and the leader ID is my own ID.
@@ -56,28 +55,32 @@ class Process(object):
     def handle_request_vote(self, *args):
         if self.election:
             LOG.error("already doing an election!")
-            return OK
+            return NACK
 
         LOG.info("doing an election")
         thread = threading.Thread(target=self.perform_election)
         thread.daemon = True
         thread.start()
-        return OK
+        return ACK
 
     """
     handle_request_healthcheck is the callback function invoked when someone asks if we are alive.
     """
 
     def handle_request_healthcheck(self, *args):
-        return OK
+        return ACK
 
     """
     handle_request_victory is the callback function invoked when a leader is elected
     """
 
     def handle_request_victory(self, *args):
-        self.leader_id = int(args[0])
-        return OK
+        victor = int(args[0])
+        if victor < self.id:
+            return NACK # do not acknowledge leadership of filthy peasants
+
+        self.leader_id = victor
+        return ACK
 
     """
     handle_request_leader is the callback function invoked when someone asks who the leader is
@@ -86,7 +89,7 @@ class Process(object):
     def handle_request_leader(self, *args):
         if self.leader_id is None:
             return None
-        return b"%s:%d" % self.peers[self.leader_id]
+        return ("%s:%d" % self.peers[self.leader_id]).encode("utf-8")
 
     """
     perform_election is invoked when we want to perform leader election 
@@ -101,24 +104,13 @@ class Process(object):
         try:
             # notify all peers with a higher id
             notify_peers = self.peers[self.id + 1 :]
-            while True:
-                if not notify_peers:
-                    break
-                # pass it on
-                host, port = notify_peers[0]
-                resp = send_message(ELECTION, host, port)
-                if resp == OK:
-                    LOG.info(
-                        "{}:{} acknowledged our election request".format(host, port)
-                    )
-                    can_be_leader = False  # darnit
-                else:
-                    LOG.warn(
-                        "{}:{} did not acknowledge our election request".format(
-                            host, port
-                        )
-                    )
-                notify_peers = notify_peers[1:]
+            if not notify_peers:
+                # it's up to us to take the mantle
+                return
+
+            acked = self.multicaster.multisend(ELECTION, notify_peers)
+            if acked:
+                can_be_leader = False
         finally:
             if can_be_leader:
                 self.assume_leadership()
@@ -129,19 +121,13 @@ class Process(object):
     """
 
     def assume_leadership(self):
-        for (hostid, (host, port)) in enumerate(self.peers):
-            if hostid == self.id:
-                continue
-            resp = send_message(VICTORY + b" %d" % self.id, host, port)
-            if resp == OK:
-                LOG.info("{}:{} acknowledged our leadership".format(host, port))
-            elif resp is None:
-                LOG.warn(
-                    "{}:{} could not acknowledge our leadership".format(host, port)
-                )
-            else:
-                LOG.warn("{}:{} did not acknowledge our leadership".format(host, port))
-        self.leader_id = self.id
+        msg = VICTORY + b" %d" % self.id
+        other_peers = self.peers[:self.id] + self.peers[self.id+1:]
+        acked = self.multicaster.multisend(msg, other_peers)
+        if not acked:
+            LOG.warn("not all peers acknowledged, not asssuming leadership")
+        else:
+            self.leader_id = self.id
 
     def run(self):
         callbacks = {
@@ -192,19 +178,26 @@ class Handler(socketserver.BaseRequestHandler):
 
 
 class Multicaster(object):
-    def __init__(self, peers):
-        self.peers = peers
-
-    def multisend(self, msg):
+    def multisend(self, msg, peers):
         tasks = []
-        for peer in self.peers:
-            tasks.append(self.send(msg, peer))
+        for peer in peers:
+            tasks.append(self.asend(msg, peer))
 
-        with asyncio.get_event_loop() as loop:
-            results = loop.run_until_complete(*tasks)
-            return all(results)
+        try:           
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            results = loop.run_until_complete(asyncio.gather(*tasks))
+            if isinstance(results, list):
+                return results
+            else:
+                return [results]
+        finally:
+            loop.stop()
 
-    async def send(self, msg, peer):
+    async def asend(self, msg, peer):
+        return self.send(msg, peer)
+
+    def send(self, msg, peer):
         host, port = peer
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(CLIENT_TIMEOUT)
