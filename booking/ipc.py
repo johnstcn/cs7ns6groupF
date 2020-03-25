@@ -21,16 +21,15 @@ NACK = b"nack"
 CLIENT_TIMEOUT = 1
 
 
-"""
-Process represents one leader-elected process. It has an ID and knows about a number of peers.
-In its initial state:
-  - it is not leader
-  - it does not know who the leader is
-  - it is not in the process of electing a new leader
-"""
-
-
 class Process(object):
+    """
+    Process represents one leader-elected process. It has an ID and knows about a number of peers.
+    In its initial state:
+    - it is not leader
+    - it does not know who the leader is
+    - it is not in the process of electing a new leader
+    """
+
     def __init__(self, id, peers):
         self.id = id
         self.peers = peers
@@ -38,21 +37,19 @@ class Process(object):
         self.leader_id = None
         self.multicaster = Multicaster()
 
-    """
-    am_leader returns True if a leader ID is known and the leader ID is my own ID.
-    Otherwise, returns False.
-    """
-
     def am_leader(self):
+        """
+        am_leader returns True if a leader ID is known and the leader ID is my own ID.
+        Otherwise, returns False.
+        """
         if self.leader_id is None:
             return False
         return self.leader_id == self.id
 
-    """
-    handle_request_vote is the callback function invoked when someone requests a leader election.
-    """
-
     def handle_request_vote(self, *args):
+        """
+        handle_request_vote is the callback function invoked when someone requests a leader election.
+        """
         if self.election:
             LOG.error("already doing an election!")
             return NACK
@@ -63,18 +60,16 @@ class Process(object):
         thread.start()
         return ACK
 
-    """
-    handle_request_healthcheck is the callback function invoked when someone asks if we are alive.
-    """
-
     def handle_request_healthcheck(self, *args):
+        """
+        handle_request_healthcheck is the callback function invoked when someone asks if we are alive.
+        """
         return ACK
 
-    """
-    handle_request_victory is the callback function invoked when a leader is elected
-    """
-
     def handle_request_victory(self, *args):
+        """
+        handle_request_victory is the callback function invoked when a leader is elected
+        """
         victor = int(args[0])
         if victor < self.id:
             return NACK  # do not acknowledge leadership of filthy peasants
@@ -82,20 +77,18 @@ class Process(object):
         self.leader_id = victor
         return ACK
 
-    """
-    handle_request_leader is the callback function invoked when someone asks who the leader is
-    """
-
     def handle_request_leader(self, *args):
+        """
+        handle_request_leader is the callback function invoked when someone asks who the leader is
+        """
         if self.leader_id is None:
             return None
         return ("%s:%d" % self.peers[self.leader_id]).encode("utf-8")
 
-    """
-    perform_election is invoked when we want to perform leader election 
-    """
-
     def perform_election(self):
+        """
+        perform_election is invoked when we want to perform leader election 
+        """
         if self.election:
             return
         self.election = True
@@ -116,11 +109,11 @@ class Process(object):
                 self.assume_leadership()
             self.election = False
 
-    """
-    assume_leadership is invoked when we determine we may be the leader
-    """
-
     def assume_leadership(self):
+        """
+        assume_leadership is invoked when we determine we may be the leader
+        """
+
         msg = VICTORY + b" %d" % self.id
         other_peers = self.peers[: self.id] + self.peers[self.id + 1 :]
         acked = self.multicaster.multisend(msg, other_peers)
@@ -147,12 +140,11 @@ class Process(object):
                 LOG.error("got exception: " + str(e))
 
 
-"""
-Handler handles incoming messages and calls its relevant callback function.
-"""
-
-
 class Handler(socketserver.BaseRequestHandler):
+    """
+    Handler handles incoming messages and calls its relevant callback function.
+    """
+
     def __init__(self, callbacks):
         self.callbacks = callbacks
 
@@ -178,7 +170,14 @@ class Handler(socketserver.BaseRequestHandler):
 
 
 class Multicaster(object):
+    """
+    Multicaster handles sending messages to multiple peers simultaneously.
+    """
+
     def multisend(self, msg, peers):
+        """
+        multisend sends msg to all peers simultaneously
+        """
         tasks = []
         for peer in peers:
             tasks.append(self.asend(msg, peer))
@@ -195,9 +194,15 @@ class Multicaster(object):
             loop.stop()
 
     async def asend(self, msg, peer):
+        """
+        asend is an async wrapper for send.
+        """
         return self.send(msg, peer)
 
     def send(self, msg, peer):
+        """
+        send sends msg to peer
+        """
         host, port = peer
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(CLIENT_TIMEOUT)
@@ -216,14 +221,13 @@ class Multicaster(object):
                 return False
 
 
-"""
-parse_hostport transforms a string "host:port" to a tuple of (host:str, port:int)
-Example:
-    parse_hostport("localhost:12345") -> ("localhost", 12345)
-"""
-
-
 def parse_hostport(hostport_str):
+    """
+    parse_hostport transforms a string "host:port" to a tuple of (host:str, port:int)
+    Example:
+        parse_hostport("localhost:12345") -> ("localhost", 12345)
+    """
+
     host, port_str = hostport_str.split(":")
     return host.strip(), int(port_str.strip())
 
