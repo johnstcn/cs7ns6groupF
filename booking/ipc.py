@@ -77,7 +77,7 @@ class Process(object):
     def handle_request_victory(self, *args):
         victor = int(args[0])
         if victor < self.id:
-            return NACK # do not acknowledge leadership of filthy peasants
+            return NACK  # do not acknowledge leadership of filthy peasants
 
         self.leader_id = victor
         return ACK
@@ -122,7 +122,7 @@ class Process(object):
 
     def assume_leadership(self):
         msg = VICTORY + b" %d" % self.id
-        other_peers = self.peers[:self.id] + self.peers[self.id+1:]
+        other_peers = self.peers[: self.id] + self.peers[self.id + 1 :]
         acked = self.multicaster.multisend(msg, other_peers)
         if not acked:
             LOG.warn("not all peers acknowledged, not asssuming leadership")
@@ -183,7 +183,7 @@ class Multicaster(object):
         for peer in peers:
             tasks.append(self.asend(msg, peer))
 
-        try:           
+        try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             results = loop.run_until_complete(asyncio.gather(*tasks))
