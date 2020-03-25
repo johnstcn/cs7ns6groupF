@@ -102,7 +102,7 @@ class Process(object):
                 return
 
             acked = self.multicaster.multisend(ELECTION, notify_peers)
-            if acked:
+            if any(acked):
                 can_be_leader = False
         finally:
             if can_be_leader:
