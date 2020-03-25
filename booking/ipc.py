@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import asyncio
 import logging
 import socket
 import socketserver
@@ -15,23 +16,12 @@ VICTORY     = b"vctr"
 OK          = b"ok"
 WHOISLEADER = b"ldr?"
 
+ACK = b"ack"
+NACK = b"nack"
+
 CLIENT_TIMEOUT = 1
 
-def send_message(msg, host, port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(CLIENT_TIMEOUT)
-        try:
-            s.connect((host, port))
-            s.sendall(msg)
-            LOG.debug("sent {} to {}:{}".format(msg, host, port))
-            resp = s.recv(1024)
-            return resp
-        except socket.timeout:
-            LOG.error("timeout sending {} to {}:{}".format(msg, host, port))
-            return None
-        except ConnectionRefusedError:
-            LOG.error("error connecting to {}:{}".format(host, port))
-            return None
+
 
 
 '''
@@ -47,6 +37,7 @@ class Process(object):
         self.peers = peers
         self.election = False
         self.leader_id = None
+        self.multicaster = Multicaster(peers[:id] + peers[id+1:])
 
 
     '''
@@ -95,7 +86,7 @@ class Process(object):
     def handle_request_leader(self, *args):
         if self.leader_id is None:
             return None
-        return b'%d' % self.leader_id
+        return b'%s:%d' % self.peers[self.leader_id]
 
 
     '''
@@ -189,6 +180,49 @@ class Handler(socketserver.BaseRequestHandler):
             self.request.sendall(resp)
 
 
+class Multicaster(object):
+    def __init__(self, peers):
+        self.peers = peers
+
+    def multisend(self, msg):
+        tasks = []
+        for peer in self.peers:
+            tasks.append(self.send(msg, peer))
+        
+        with asyncio.get_event_loop() as loop:
+            results = loop.run_until_complete(*tasks)
+            return all(results)
+
+
+    async def send(self, msg, peer):
+        host, port = peer
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(CLIENT_TIMEOUT)
+            try:
+                s.connect((host, port))
+                s.sendall(msg)
+                LOG.debug("sent {} to {}:{}".format(msg, host, port))
+                resp = s.recv(1024).strip()
+                LOG.debug("got {} from {}:{}".format(resp, host, port))
+                return resp == ACK
+            except socket.timeout:
+                LOG.error("timeout sending {} to {}:{}".format(msg, host, port))
+                return False
+            except ConnectionRefusedError:
+                LOG.error("error connecting to {}:{}".format(host, port))
+                return False
+
+
+'''
+parse_hostport transforms a string "host:port" to a tuple of (host:str, port:int)
+Example:
+    parse_hostport("localhost:12345") -> ("localhost", 12345)
+'''
+def parse_hostport(hostport_str):
+    host, port_str = hostport_str.split(":")
+    return host.strip(), int(port_str.strip())
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--id", type=int, default=0)
@@ -197,9 +231,7 @@ def main():
 
     socketserver.TCPServer.allow_reuse_address = True
 
-    hostport = lambda s: (s.split(":")[0], int(s.split(":")[1]))
-
-    peers = list(map(hostport, args.peers))
+    peers = list(map(parse_hostport, args.peers))
 
     p = Process(args.id, peers)
     p.run()
