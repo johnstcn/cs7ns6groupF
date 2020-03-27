@@ -233,7 +233,42 @@ def parse_hostport(hostport_str):
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    desc = '''
+module for inter-process communication and leader election.
+Sample usage follows:
+    # launch one instance binding to localhost:9990 (peers[0])
+    $ booking/ipc.py --id 0 --peers localhost:9990 localhost:9991 &
+    [1] 5313
+    INFO:root:listening on localhost:9990
+    # launch another process bindding to localhost:9991 (peers[1])
+    $ booking/ipc.py --id 1 --peers localhost:9990 localhost:9991 &
+    [2] 5476
+    INFO:root:listening on localhost:9991
+    # if we ask 0 who the leader is, it doesn't know
+    $ echo 'ldr?' | nc localhost 9990
+    DEBUG:root:got b'ldr?' from 127.0.0.1:48960
+    # we can ask 0 to initiate an election
+    $ echo 'vote' | nc localhost 9990
+    DEBUG:root:got b'vote' from 127.0.0.1:48966
+    INFO:root:doing an election
+    ackDEBUG:asyncio:Using selector: EpollSelector
+    # 0 asks 1 to vote
+    DEBUG:root:sent b'vote' to localhost:9991
+    DEBUG:root:got b'vote' from 127.0.0.1:47098
+    # 1 initiates an election
+    INFO:root:doing an election
+    DEBUG:root:got b'ack' from localhost:9991
+    DEBUG:asyncio:Using selector: EpollSelector
+    # 1 has no higher peer so declares itself victor
+    DEBUG:root:sent b'vctr 1' to localhost:9990
+    DEBUG:root:got b'vctr 1' from 127.0.0.1:48970
+    DEBUG:root:got b'ack' from localhost:9990
+    # now 0 knows who the leader is
+    $ echo 'ldr?' | nc localhost 9990
+    DEBUG:root:got b'ldr?' from 127.0.0.1:48972
+    localhost:9991
+    '''
+    parser = argparse.ArgumentParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--id", type=int, default=0)
     parser.add_argument("--peers", type=str, nargs="+", default=["localhost:9999"])
     args = parser.parse_args()
