@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+DOCKER_COMPOSE_FILE="docker-compose.demo1.yml"
 TOXCLI=".bin/toxiproxy-cli"
 TOXCLI_URL="https://github.com/Shopify/toxiproxy/releases/download/v2.1.4/toxiproxy-cli-linux-amd64"
 
@@ -13,11 +14,11 @@ function fetch_toxiproxy {
 }
 
 function setup {
-    docker-compose -f docker-compose.toxiproxy.yml up --detach
+    docker-compose -f "${DOCKER_COMPOSE_FILE}" up --detach
 }
 
 function teardown {
-    docker-compose -f docker-compose.toxiproxy.yml down -t 1
+    docker-compose -f "${DOCKER_COMPOSE_FILE}" down -t 1
 }
 
 trap teardown EXIT
