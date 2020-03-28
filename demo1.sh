@@ -18,6 +18,9 @@ function setup {
 }
 
 function teardown {
+    echo "--- BEGIN CONTAINER LOGS ---"
+    docker-compose -f "${DOCKER_COMPOSE_FILE}" logs -t
+    echo "--- END CONTAINER LOGS ---"
     docker-compose -f "${DOCKER_COMPOSE_FILE}" down -t 1
 }
 
