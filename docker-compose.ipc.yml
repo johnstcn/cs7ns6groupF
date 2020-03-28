@@ -1,9 +1,5 @@
 version: "3"
 services:
-    toxiproxy:
-        image: shopify/toxiproxy:latest
-        ports:
-            - "8474:8474"
     peer0:
         image: cs7ns6-groupf-ipc:latest
         build:
@@ -13,7 +9,7 @@ services:
             - "9000:9000"
         environment:
             PEER_ID: 0
-            PEERS: peer0:9000 toxiproxy:19001 toxiproxy:19002
+            PEERS: peer0:9000 peer1:9001 peer2:9002
         
     peer1:
         image: cs7ns6-groupf-ipc:latest
@@ -24,7 +20,7 @@ services:
             - "9001:9001"
         environment:
             PEER_ID: 1
-            PEERS: toxiproxy:19000 peer1:9001 toxiproxy:19002
+            PEERS: peer0:9000 peer1:9001 peer2:9002
 
     peer2:
         image: cs7ns6-groupf-ipc:latest
@@ -35,4 +31,7 @@ services:
             - "9002:9002"
         environment: 
             PEER_ID: 2
-            PEERS: toxiproxy:19000 toxiproxy:19001 peer2:9002
+            PEERS: peer0:9000 peer1:9001 peer2:9002
+
+networks:
+    cs7ns6-groupf-net:

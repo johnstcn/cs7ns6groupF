@@ -5,7 +5,7 @@ Repo to hold code for CS7NS6 Group F Project
 
 This module handles inter-process communication (via TCP) and leader election (via Bully algorithm).
 
-It is design to be used by other modules:
+It is designed to be used by other modules:
 
 ```
 all_peers = ["10.0.0.1:8000", "10.0.0.2:8000", "10.0.0.3:8000"]
@@ -32,3 +32,14 @@ A more complete, automated example can also be run via `docker-compose`:
 ```bash
 docker-compose -f docker-compose.demo1.yml up
 ```
+
+## sample demo
+
+This is a small demo using `docker-compose` and [toxiproxy](https://github.com/Shopify/toxiproxy) to simulate latency. You can run it via `./demo1.sh`.
+
+This script performs the following:
+1. Fetches `toxiproxy-cli` to `.bin/toxiproxy-cli` if not present
+2. Brings up `docker-compose.demo1.yml`
+3. Sets up the requires toxiproxy ingresses / egresses via `toxiproxy-cli`
+4. Triggers a leader election and prints the leader
+5. Brings down the `docker-compose` setup
