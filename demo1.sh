@@ -34,9 +34,9 @@ $TOXCLI create peer0 -l toxiproxy:19000 -u peer0:9000
 $TOXCLI create peer1 -l toxiproxy:19001 -u peer1:9001
 $TOXCLI create peer2 -l toxiproxy:19002 -u peer2:9002
 # create some toxicity
-$TOXCLI toxic add peer0 -t latency -a latency=1000
-$TOXCLI toxic add peer1 -t latency -a latency=1000
-$TOXCLI toxic add peer2 -t latency -a latency=1000
+$TOXCLI toxic add peer0 -t latency -a latency=0
+$TOXCLI toxic add peer1 -t latency -a latency=500
+$TOXCLI toxic add peer2 -t latency -a latency=0
 # do a leader election
 echo -n "performing leader election: "
 echo vote | nc localhost 9000
