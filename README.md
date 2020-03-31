@@ -33,6 +33,8 @@ A more complete, automated example can also be run via `docker-compose`:
 docker-compose -f docker-compose.demo1.yml up
 ```
 
+If you have GNU make available, you can also just run `make`.
+
 ## sample demo
 
 This is a small demo using `docker-compose` and [toxiproxy](https://github.com/Shopify/toxiproxy) to simulate latency. You can run it via `./demo1.sh`.
