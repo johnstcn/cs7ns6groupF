@@ -3,7 +3,9 @@ set -euo pipefail
 
 DOCKER_COMPOSE_FILE="docker-compose.demo1.yml"
 TOXCLI=".bin/toxiproxy-cli"
-TOXCLI_URL="https://github.com/Shopify/toxiproxy/releases/download/v2.1.4/toxiproxy-cli-linux-amd64"
+TOX_VERSION="v2.1.4"
+KERNEL=$(uname -s | tr '[:upper:]' '[:lower:]')
+TOXCLI_URL="https://github.com/Shopify/toxiproxy/releases/download/${TOX_VERSION}/toxiproxy-cli-${KERNEL}-amd64"
 
 function fetch_toxiproxy {
     if [ ! -x "${TOXCLI}" ]; then
