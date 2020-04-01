@@ -103,8 +103,8 @@ class Process(object):
                 # it's up to us to take the mantle
                 return
 
-            acked = self.multicaster.multisend(ELECTION, notify_peers)
-            if any(acked):
+            responses = self.multicaster.multisend(ELECTION, notify_peers)
+            if any(e is not None and e == ACK for e in responses):
                 can_be_leader = False
         finally:
             if can_be_leader:
@@ -120,7 +120,7 @@ class Process(object):
         other_peers = self.peers[: self.id] + self.peers[self.id + 1 :]
         responses = self.multicaster.multisend(msg, other_peers)
         LOG.debug("assume_leadership: responses: %s", responses)
-        num_acked = sum(map(lambda r: r is not None and r == ACK, responses))
+        num_acked = len(list(filter(lambda r: r is not None and r == ACK, responses)))
         num_required = self.qw - 1
         if num_acked < num_required:
             LOG.warning("insufficient peers acked (wanted %d, got %d): not asssuming leadership", num_required, num_acked)
@@ -217,13 +217,13 @@ class Multicaster(object):
                 LOG.debug("sent {} to {}:{}".format(msg, host, port))
                 resp = s.recv(1024).strip()
                 LOG.debug("got {} from {}:{}".format(resp, host, port))
-                return resp == ACK
+                return resp
             except socket.timeout:
                 LOG.error("timeout sending {} to {}:{}".format(msg, host, port))
-                return False
+                return None
             except ConnectionRefusedError:
                 LOG.error("error connecting to {}:{}".format(host, port))
-                return False
+                return None
 
 
 def parse_hostport(hostport_str):
