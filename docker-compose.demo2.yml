@@ -1,0 +1,27 @@
+version: "3"
+services:
+    toxiproxy:
+        image: shopify/toxiproxy:latest
+        ports:
+            - "8474:8474"
+    peer0:
+        image: cs7ns6-groupf-ipc:latest
+        build:
+            context: .
+            dockerfile: ipc.Dockerfile
+        ports: 
+            - "9000:9000"
+        environment:
+            PEER_ID: 0
+            PEERS: peer0:9000 toxiproxy:19001 toxiproxy:19002
+        
+    peer1:
+        image: cs7ns6-groupf-ipc:latest
+        build:
+            context: .
+            dockerfile: ipc.Dockerfile
+        ports: 
+            - "9001:9001"
+        environment:
+            PEER_ID: 1
+            PEERS: toxiproxy:19000 peer1:9001 toxiproxy:19002

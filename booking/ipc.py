@@ -30,12 +30,14 @@ class Process(object):
     - it is not in the process of electing a new leader
     """
 
-    def __init__(self, id, peers):
+    def __init__(self, id, peers, qw=3, qr=1):
         self.id = id
         self.peers = peers
         self.election = False
         self.leader_id = None
         self.multicaster = Multicaster()
+        self.qw = qw
+        self.qr = qr
 
     def am_leader(self):
         """
@@ -116,9 +118,12 @@ class Process(object):
 
         msg = VICTORY + b" %d" % self.id
         other_peers = self.peers[: self.id] + self.peers[self.id + 1 :]
-        acked = self.multicaster.multisend(msg, other_peers)
-        if not acked:
-            LOG.warn("not all peers acknowledged, not asssuming leadership")
+        responses = self.multicaster.multisend(msg, other_peers)
+        LOG.debug("assume_leadership: responses: %s", responses)
+        num_acked = sum(map(lambda r: r is not None and r == ACK, responses))
+        num_required = self.qw - 1
+        if num_acked < num_required:
+            LOG.warning("insufficient peers acked (wanted %d, got %d): not asssuming leadership", num_required, num_acked)
         else:
             self.leader_id = self.id
 
@@ -271,13 +276,15 @@ Sample usage follows:
     parser = argparse.ArgumentParser(description=desc, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--id", type=int, default=0)
     parser.add_argument("--peers", type=str, nargs="+", default=["localhost:9999"])
+    parser.add_argument("--quorum_write", type=int, default=3)
+    parser.add_argument("--quorum_read", type=int, default=1)
     args = parser.parse_args()
 
     socketserver.TCPServer.allow_reuse_address = True
 
     peers = list(map(parse_hostport, args.peers))
 
-    p = Process(args.id, peers)
+    p = Process(args.id, peers, args.quorum_write, args.quorum_read)
     p.run()
 
 
