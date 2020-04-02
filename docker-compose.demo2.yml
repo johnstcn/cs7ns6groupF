@@ -29,16 +29,3 @@ services:
             PEERS: toxiproxy:19000 peer1:9001 toxiproxy:19002
             QUORUM_WRITE: 2
             QUORUM_READ: 1
-
-    peer2:
-        image: cs7ns6-groupf-ipc:latest
-        build:
-            context: .
-            dockerfile: ipc.Dockerfile
-        ports: 
-            - "9002:9002"
-        environment: 
-            PEER_ID: 2
-            PEERS: toxiproxy:19000 toxiproxy:19001 peer2:9002
-            QUORUM_WRITE: 2
-            QUORUM_READ: 1

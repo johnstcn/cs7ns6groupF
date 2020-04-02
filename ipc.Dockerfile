@@ -4,4 +4,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY booking/ipc.py ./ipc.py
 EXPOSE 5000/tcp
-CMD ./ipc.py --id $PEER_ID --peers $PEERS
+ENV QUORUM_WRITE 3
+ENV QUORUM_READ 1
+CMD ./ipc.py --id $PEER_ID --peers $PEERS --quorum_write $QUORUM_WRITE --quorum_read $QUORUM_READ
