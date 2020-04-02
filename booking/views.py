@@ -38,7 +38,8 @@ def search():
             if request.values.get(idx) == 'Y':
                 result[idx] = db_operation.update(idx)
                 other_peers = processor.peers[: processor.id] + processor.peers[processor.id + 1:]  # Send to everyone
-                processor.multicaster.multisend(b"ok?", other_peers)  # Processor sending message
+                message = b"action %d" % int(idx)
+                processor.multicaster.multisend(message, other_peers)  # Processor sending message
 
         if len(result):
             for idx, flag in result.items():

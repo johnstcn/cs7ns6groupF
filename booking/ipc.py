@@ -6,6 +6,15 @@ import logging
 import socket
 import socketserver
 import threading
+from db_operation import *
+from database import db
+from flask import g
+
+def get_db():
+    if 'db' not in g:
+        g.db = connect_to_database()
+
+    return g.db
 
 LOG = logging.getLogger(logging.basicConfig())
 LOG.setLevel(logging.DEBUG)
@@ -14,6 +23,7 @@ ELECTION = b"vote"
 HEALTHCHECK = b"ok?"
 VICTORY = b"vctr"
 WHOISLEADER = b"ldr?"
+TRANSACTION = b"action"
 
 ACK = b"ack"
 NACK = b"nack"
@@ -127,12 +137,39 @@ class Process(object):
         else:
             self.leader_id = self.id
 
+
+    def handle_room_update_message(self, room):
+        """
+        handle_room_update_message handles the message from other peers. Should implement 2-phase protocol.
+         - Check if leader; True --> Start 2 phase protocol
+                            False --> do nothing.
+        :param room: Message from other peers. Assumed to be room number for now.
+        """
+        LOG.info("Update on Room %d", int(room))
+        # Insert Database update operation here.
+        try:
+            # db = get_db()
+            # check = update_db(int(room), db)  #Currently not working..
+            check = 1   #Placeholder
+            if check == 1:
+                successful = True
+            if successful:
+                LOG.info("Made successful update on room %d", int(room))
+                return ACK
+            else:
+                LOG.info("Unsuccessful update on room %d", int(room))
+                return NACK
+
+        except Exception as e:
+            LOG.error("got exception: " + str(e))
+
     def run(self):
         callbacks = {
             ELECTION: self.handle_request_vote,
             HEALTHCHECK: self.handle_request_healthcheck,
             VICTORY: self.handle_request_victory,
             WHOISLEADER: self.handle_request_leader,
+            TRANSACTION: self.handle_room_update_message,
         }
         hostport = self.peers[self.id]
         with socketserver.TCPServer(hostport, Handler(callbacks)) as server:
