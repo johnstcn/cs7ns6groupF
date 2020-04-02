@@ -1,9 +1,43 @@
 version: "3"
 services:
-    app:
+#    app:
+#        image: cs7ns6groupf:latest
+#        build: .
+#        ports:
+#            - "5000:5000"
+#        volumes:
+#            - "${PWD}/data:/data"
+    peer0:
         image: cs7ns6groupf:latest
         build: .
-        ports: 
+        ports:
             - "5000:5000"
-        volumes: 
+            - "9000:9000"
+        volumes:
             - "${PWD}/data:/data"
+        environment:
+            PEER_ID: 0
+            PEERS: peer0:9000 peer1:9001 peer2:9002
+    peer1:
+        image: cs7ns6groupf:latest
+        build: .
+        ports:
+            - "5001:5000"
+            - "9001:9001"
+        volumes:
+            - "${PWD}/data:/data"
+        environment:
+            PEER_ID: 1
+            PEERS: peer0:9000 peer1:9001 peer2:9002
+
+    peer2:
+        image: cs7ns6groupf:latest
+        build: .
+        ports:
+            - "5002:5000"
+            - "9002:9002"
+        volumes:
+            - "${PWD}/data:/data"
+        environment:
+            PEER_ID: 2
+            PEERS: peer0:9000 peer1:9001 peer2:9002

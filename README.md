@@ -45,3 +45,10 @@ This script performs the following:
 3. Sets up the requires toxiproxy ingresses / egresses via `toxiproxy-cli`
 4. Triggers a leader election and prints the leader
 5. Brings down the `docker-compose` setup
+
+## Combined Flask + IPC [02-04-2020]
+- IPC is an instance of class Processor in Flask. 
+- Only an instance in /search view
+- Still to write full integration
+- You can see peers connection and talking when on the /search page
+and can see 'ok'/'ack' messages when rooms booked.
