@@ -16,7 +16,9 @@ services:
             PEERS: peer0:9000 toxiproxy:19001 toxiproxy:19002
             QUORUM_WRITE: 2
             QUORUM_READ: 1
-        
+        depends_on:
+            - toxiproxy
+
     peer1:
         image: cs7ns6-groupf-ipc:latest
         build:
@@ -29,3 +31,5 @@ services:
             PEERS: toxiproxy:19000 peer1:9001 toxiproxy:19002
             QUORUM_WRITE: 2
             QUORUM_READ: 1
+        depends_on:
+          - toxiproxy

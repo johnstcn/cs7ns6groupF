@@ -33,6 +33,9 @@ setup
 $TOXCLI create peer0 -l toxiproxy:19000 -u peer0:9000
 $TOXCLI create peer1 -l toxiproxy:19001 -u peer1:9001
 
+# we need to wait for a second
+sleep 1
+
 # do a leader election
 echo -n "performing leader election: "
 echo vote | nc localhost 9000
