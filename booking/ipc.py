@@ -7,14 +7,7 @@ import socket
 import socketserver
 import threading
 from db_operation import *
-from database import db
-from flask import g
 
-def get_db():
-    if 'db' not in g:
-        g.db = connect_to_database()
-
-    return g.db
 
 LOG = logging.getLogger(logging.basicConfig())
 LOG.setLevel(logging.DEBUG)
@@ -149,8 +142,8 @@ class Process(object):
         # Insert Database update operation here.
         try:
             # db = get_db()
-            # check = update_db(int(room), db)  #Currently not working..
-            check = 1   #Placeholder
+            check = update(int(room))  #Currently not working..
+            # check = 1   #Placeholder
             if check == 1:
                 successful = True
             if successful:

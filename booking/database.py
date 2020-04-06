@@ -6,8 +6,25 @@
 # @Software: PyCharm
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from ipc import *
+import os
+
+
+def ipc_test():
+    id = int(os.environ['PEER_ID'])
+    print(id)
+    peers_value = os.environ['PEERS'].split(' ')
+    print(peers_value)
+    peers = list(map(parse_hostport, peers_value))
+    print(peers)
+    p = Process(id, peers)
+    ipc_thread = threading.Thread(target=p.run)
+    ipc_thread.start()
+    return p
+
 
 db = SQLAlchemy()
+processor = ipc_test()
 
 
 def create_app(config_name=None):

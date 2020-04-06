@@ -2,9 +2,8 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from forms.login import LoginForm
 from models import *
 import db_operation
-import os
 from ipc import *
-import threading
+from database import processor
 
 sv = Blueprint("sv", __name__)  # initialise a Blueprint instance
 
@@ -28,7 +27,6 @@ def login():
 
 @sv.route('/search', methods=['GET', 'POST'])
 def search():
-    processor = ipc_test()                                          # Initialise Processor
     u = Room.query.filter(Room.RoomState == 'unoccupied').all()
     labels = ['RoomID']
     room_id = [i.RoomID for i in u]
@@ -53,14 +51,3 @@ def search():
     return render_template('search.html', labels=labels, content=room_id)
 
 
-def ipc_test():
-    id = int(os.environ['PEER_ID'])
-    print(id)
-    peers_value = os.environ['PEERS'].split(' ')
-    print(peers_value)
-    peers = list(map(parse_hostport, peers_value))
-    print(peers)
-    p = Process(id, peers)
-    ipc_thread = threading.Thread(target=p.run)
-    ipc_thread.start()
-    return p
