@@ -6,8 +6,10 @@ import threading
 import time
 
 from node import Node
-from peer import Peer
+# from peer import Peer
 from states import NodePersistentState
+
+from rpc_client import *
 
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
@@ -37,8 +39,17 @@ def main():
     node_thread = threading.Thread(target=node.start, args=[args.host, args.port])
     node_thread.daemon = True
     node_thread.start()
+
+    testingRPCClient = False    # Add to test RPC Client. Continuing example
+    if testingRPCClient:
+        client = RpcClient()
+
     try:
         while True:
+            if testingRPCClient:
+                if args.node_id == 0:
+                    t, s = client.send(peers[0], b"vote")
+                    print("Term", t, "Success?:", s)
             time.sleep(1)
     except KeyboardInterrupt:
         raise SystemExit

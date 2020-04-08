@@ -21,5 +21,6 @@ class RpcClient(object):
                 term = int(term_str)
                 success = success_str == '1'
                 return term, success
-            except:
+            except Exception as e:
+                LOG.warning("Got RPCclient Exception", e)
                 return None, None
