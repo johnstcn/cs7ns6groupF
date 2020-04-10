@@ -81,3 +81,24 @@ class AppendEntriesMessage(object):
         except IndexError:
             entry = b''
         return AppendEntriesMessage(term, leader_id, prev_log_idx, prev_log_term, leader_commit_idx, entry)
+
+
+class DbEntriesMessage(object):
+    # """
+    # Database entry message class. Use to help with paring message in relation to Database.
+    # """
+
+    def __init__(self, room):
+        self.room = room
+
+    def __bytes__(self):
+        return b'append %s' % (
+            self.room)
+
+
+    @classmethod
+    def from_bytes(cls, bytes_: bytes):
+        bytes_ = bytes_.lstrip(b'db ')
+        parts = bytes_.split(b' ')  # entry may contain spaces
+        room = int(parts.pop(0))
+        return room

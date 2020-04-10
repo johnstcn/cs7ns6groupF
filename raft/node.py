@@ -4,7 +4,7 @@ import threading
 import time
 from typing import List, Optional, Dict, Callable, Tuple
 
-from messages import AppendEntriesMessage, VoteMessage
+from messages import AppendEntriesMessage, VoteMessage, DbEntriesMessage
 from state_machine import DummyStateMachine
 from peer import Peer
 from rpc_client import RpcClient
@@ -41,6 +41,7 @@ class Node(object):
             handlers: Dict[bytes, Callable] = {
                 b'vote': self.handle_request_vote,
                 b'append': self.handle_append_entries,
+                b'db': self.handle_database_request,
             }
             self._server = RpcServer(host, port, handlers)
             self._server.start()
@@ -156,6 +157,14 @@ class Node(object):
                 return current_term, False
 
             return current_term, True
+
+    def handle_database_request(self, bytes_: bytes):
+        LOG.debug("Node handle_database_request bytes:%s", bytes_)
+        with self._lock:
+            # Get some request for database from flask-client probably
+            msg: DbEntriesMessage = DbEntriesMessage.from_bytes(bytes_)
+
+        return msg, True
 
     def is_leader(self) -> bool:
         LOG.debug("Node is_leader")

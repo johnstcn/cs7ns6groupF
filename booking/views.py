@@ -56,8 +56,8 @@ def search():
 @sv.route('/test_raft', methods=['GET'])
 def test_raft():
     rpcClient, peer = raft_set_up()
-    t, s = rpcClient.send(peer, b"vote")
-    data = {"Term":t, "Success:":s} # Your data in JSON-serializable type
+    t, s = rpcClient.send(peer, b"db 101 102")
+    data = {"Term": t, "Success:": s}
     return data
 
 
