@@ -5,6 +5,7 @@ import db_operation
 import os
 from ipc import *
 import threading
+from example import *
 
 sv = Blueprint("sv", __name__)  # initialise a Blueprint instance
 
@@ -52,6 +53,13 @@ def search():
 
     return render_template('search.html', labels=labels, content=room_id)
 
+@sv.route('/test_raft', methods=['GET'])
+def test_raft():
+    rpcClient, peer = raft_set_up()
+    t, s = rpcClient.send(peer, b"vote")
+    data = {"Term":t, "Success:":s} # Your data in JSON-serializable type
+    return data
+
 
 def ipc_test():
     id = int(os.environ['PEER_ID'])
@@ -64,3 +72,12 @@ def ipc_test():
     ipc_thread = threading.Thread(target=p.run)
     ipc_thread.start()
     return p
+
+
+def raft_set_up():
+    peer_value = os.environ['PEERS']
+    peer_id, host, port = parse_peer(peer_value)
+    p = Peer(peer_id, host, port)
+    client = RpcClient()
+
+    return client, p
