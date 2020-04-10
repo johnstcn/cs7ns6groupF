@@ -16,14 +16,14 @@ class VoteMessage(object):
             and whether the candidate was granted a vote or not
     """
 
-    def __init__(self, term, candidate_id, last_log_idx, last_log_term):
+    def __init__(self, term: int, candidate_id: int, last_log_idx: int, last_log_term: int):
         self.term = term
         self.candidate_id = candidate_id
         self.last_log_idx = last_log_idx
         self.last_log_term = last_log_term
 
     def __bytes__(self):
-        return b'vote %s %s %s %s' % (self.term, self.candidate_id, self.last_log_idx, self.last_log_term)
+        return b'vote %d %d %d %d' % (self.term, self.candidate_id, self.last_log_idx, self.last_log_term)
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -61,7 +61,7 @@ class AppendEntriesMessage(object):
         self.entry = entry
 
     def __bytes__(self):
-        return b'append %s %s %s %s %s %s' % (
+        return b'append %d %d %d %d %d %s' % (
             self.term, self.leader_id, self.prev_log_idx, self.prev_log_term, self.leader_commit_idx, self.entry)
 
     @classmethod
