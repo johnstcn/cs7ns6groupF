@@ -255,8 +255,25 @@ class Node(object):
                 last_log_term = 0
 
             msg = VoteMessage(current_term, self._node_id, last_log_idx, last_log_term)
+            num_votes = 0
+            votes_needed = int(len(self._peers) / 2) + 1 # need a majority
             for peer in self._peers:
-                self._client.send(peer, msg)
+                # TODO: what to do with their term?
+                _, got_vote = self._client.send(peer, msg)
+                if got_vote is None:
+                    LOG.error("become_candidate: could not get vote from %s", peer)
+                elif got_vote:
+                    LOG.debug("become_candidate: got vote from %s", peer)
+                    num_votes += got_vote
+                else:
+                    LOG.debug("become_candidate: lost vote from %s", peer)
+
+            LOG.debug("become_candidate: need %d/%d votes, got %d/%d", votes_needed, len(self._peers), num_votes, len(self._peers))
+            won_election = num_votes >= votes_needed
+
+        if won_election:
+            LOG.debug("become_candidate: node_id:%d yay I won!", self._node_id)
+            self.become_leader()
         return True
 
     def is_follower(self) -> bool:
