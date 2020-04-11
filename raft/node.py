@@ -125,6 +125,12 @@ class Node(object):
             LOG.debug("Node is not candidate")
             return
 
+        with self._lock:
+            if self._should_step_down:
+                LOG.info("stepping down from candidate to follower")
+                self._state = Node.STATE_FOLLOWER
+                return
+
     def do_leader(self):
         # TODO: implement me
         LOG.debug("Node do_leader")
