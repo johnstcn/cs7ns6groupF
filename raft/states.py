@@ -77,10 +77,9 @@ class NodePersistentState(object):
             voted_for = json_obj.get('voted_for', None)
             logs = []
             for l in json_obj.get('logs', []):
-                idx = l['idx']
                 term = l['term']
                 data = l['data']
-                logs.append(Entry(idx, term, data))
+                logs.append(Entry(term, data))
             return NodePersistentState(fpath, current_term, voted_for, logs)
 
     def __init__(self, fpath, current_term, voted_for, logs):
