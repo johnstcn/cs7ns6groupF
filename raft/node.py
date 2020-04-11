@@ -188,23 +188,25 @@ class Node(object):
             current_term: int = self._node_persistent_state.get_term()
             # Reply false if term < currentTerm (§5.1)
             if msg.term < current_term:
+                LOG.debug("Node handle_request_vote: msg_term:%d behind current_term:%d ", current_term, msg.term)
                 return current_term, False
 
             # If votedFor is null or candidateId, and candidate’s log is at
             # least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
             voted_for = self._node_persistent_state.get_voted_for()
-            if voted_for is not None:
-                return current_term, False
-
-            if voted_for != msg.candidate_id:
+            if voted_for is not None and voted_for != msg.candidate_id:
+                LOG.debug("Node handle_request_vote: already voted for node_id:%d", voted_for)
                 return current_term, False
 
             logs: List[Entry] = self._node_persistent_state.get_logs()
             our_last_log_idx = len(logs) - 1
 
             if our_last_log_idx > msg.last_log_idx:
+                LOG.debug("Node handle_request_vote: candidate not up to date: node_id:%s")
                 return current_term, False
 
+            LOG.info("Node handle_request_vote: giving a vote to node_id:%d", msg.candidate_id)
+            self._node_persistent_state.set_voted_for(msg.candidate_id)
             return current_term, True
 
     def handle_database_request(self, bytes_: bytes):
