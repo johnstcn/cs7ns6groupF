@@ -32,7 +32,7 @@ services:
             - "${PWD}/data:/data"
         environment:
             PEER_ID: 1
-            PEERS: 1:peer0:9000 2:peer2:9002
+            PEERS: 0:peer0:9000 2:peer2:9002
             PORT: 9001
             HOST_NAME: peer1
 
