@@ -11,15 +11,16 @@ LOG.setLevel(logging.DEBUG)
 
 class RpcClient(object):
     def send(self, peer: Peer, msg) -> Tuple[Optional[int], Optional[bool]]:
-        LOG.debug("RpcClient send peer:%s msg:%s", peer, msg)
+        LOG.debug("RpcClient send peer %s msg:%s", peer, msg)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             try:
                 sock.connect(peer.hostport())
                 sock.sendall(bytes(msg))
                 resp = sock.recv(1024)
+                LOG.debug("RpcClient response from peer %s: %s", peer, resp)
                 term_str, success_str = resp.strip().split(b' ')
                 term = int(term_str)
-                success = success_str == '1'
+                success = success_str == b'1'
                 return term, success
             except Exception as e:
                 LOG.warning("Got RPCclient Exception", e)
