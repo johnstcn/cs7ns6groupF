@@ -18,23 +18,18 @@ class LeaderVolatileState(object):
     def __init__(self):
         self._next_idx = {}
         self._match_idx = {}
-        self._lock = threading.Lock()
 
     def set_next_idx(self, k, v):
-        with self._lock:
-            self._next_idx[k] = v
+        self._next_idx[k] = v
 
     def get_next_idx(self, k):
-        with self._lock:
-            return self._next_idx[k]
+        return self._next_idx[k]
 
     def set_match_idx(self, k, v):
-        with self._lock:
-            self._match_idx[k] = v
+        self._match_idx[k] = v
 
     def get_match_idx(self, k):
-        with self._lock:
-            return self._match_idx[k]
+        return self._match_idx[k]
 
 
 class NodeVolatileState(object):
@@ -47,23 +42,18 @@ class NodeVolatileState(object):
     def __init__(self):
         self._commit_idx = 0
         self._last_applied = 0
-        self._lock = threading.Lock()
 
     def get_commit_idx(self):
-        with self._lock:
-            return self._commit_idx
+        return self._commit_idx
 
     def get_last_applied(self):
-        with self._lock:
-            return self._last_applied
+        return self._last_applied
 
     def set_commit_idx(self, idx):
-        with self._lock:
-            self._commit_idx = idx
+        self._commit_idx = idx
 
     def set_last_applied(self, idx):
-        with self._lock:
-            self._last_applied = idx
+        self._last_applied = idx
 
 
 class NodePersistentState(object):
@@ -98,54 +88,44 @@ class NodePersistentState(object):
         self._current_term = current_term
         self._voted_for = voted_for
         self._logs = logs
-        self._lock = threading.Lock()
 
     def __str__(self):
-        with self._lock:
-            obj = {
-                'current_term': self._current_term,
-                'voted_for': self._voted_for,
-                'logs': self._logs,
-            }
-            return json.dumps(obj)
+        obj = {
+            'current_term': self._current_term,
+            'voted_for': self._voted_for,
+            'logs': self._logs,
+        }
+        return json.dumps(obj)
 
     def get_term(self) -> int:
-        with self._lock:
-            return self._current_term
+        return self._current_term
 
     def increment_term(self):
-        with self._lock:
-            self._current_term += 1
-            self._save()
+        self._current_term += 1
+        self._save()
 
     def get_voted_for(self) -> Optional[int]:
-        with self._lock:
-            return self._voted_for
+        return self._voted_for
 
     def set_voted_for(self, voted_for=None):
-        with self._lock:
-            self._voted_for = voted_for
-            self._save()
+        self._voted_for = voted_for
+        self._save()
 
     def get_logs(self) -> List['Entry']:
-        with self._lock:
-            return self._logs
+        return self._logs
 
     def append_log(self, log) -> int:
-        with self._lock:
-            self._logs.append(log)
-            self._save()
-            return self._logs.index(log)
+        self._logs.append(log)
+        self._save()
+        return self._logs.index(log)
 
     def set_logs(self, logs):
-        with self._lock:
-            self._logs = [l for l in logs]
-            self._save()
+        self._logs = [l for l in logs]
+        self._save()
 
     def _save(self):
-        with self._lock:
-            with open(self._fpath, 'w') as f:
-                f.write(str(self))
+        with open(self._fpath, 'w') as f:
+            f.write(str(self))
 
 
 class Entry(object):
