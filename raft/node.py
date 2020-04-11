@@ -1,5 +1,7 @@
 #!/usr/bin/env python
+import inspect
 import logging
+import random
 import threading
 import time
 from typing import List, Optional, Dict, Callable, Tuple
@@ -15,12 +17,33 @@ LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
 
+class NoisyLock(object):
+    def __init__(self):
+        self._lock = threading.Lock()
+
+    def __enter__(self):
+        curr_frame = inspect.currentframe()
+        call_frame = inspect.getouterframes(curr_frame, 2)
+        call_name = call_frame[1][3]
+        LOG.debug("LOCK ENTER: " + call_name)
+        self._lock.__enter__()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        curr_frame = inspect.currentframe()
+        call_frame = inspect.getouterframes(curr_frame, 2)
+        call_name = call_frame[1][3]
+        LOG.debug("LOCK EXIT: " + call_name)
+        self._lock.__exit__(exc_type, exc_val, exc_tb)
+
+
 class Node(object):
     STATE_FOLLOWER = 0
     STATE_CANDIDATE = 1
     STATE_LEADER = 2
 
-    def __init__(self, node_id: int, persistent_state: 'NodePersistentState', peers: List[Peer]):
+    def __init__(self, node_id: int, persistent_state: 'NodePersistentState', peers: List[Peer],
+                 election_timeout_ms_min: int = 2000, election_timeout_ms_max: int = 10000,
+                 loop_interval_ms: int = 1000):
         LOG.debug("Node init node_id: %d peers:%s persistent_state: %s", node_id, peers, persistent_state._fpath)
         self._node_id: int = node_id
         self._node_persistent_state: NodePersistentState = persistent_state
@@ -30,13 +53,19 @@ class Node(object):
         self._server: Optional[RpcServer] = None
         self._client: RpcClient = RpcClient()
         self._state: int = Node.STATE_FOLLOWER
-        self._lock: threading.Lock = threading.Lock()
+        #self._lock: threading.Lock = threading.Lock()
+        self._lock: NoisyLock = NoisyLock()
         self._last_heartbeat: float = 0.0
         self._state_machine: DummyStateMachine = DummyStateMachine()
         self._should_step_down: bool = False
+        self._election_timeout_ms = None  # set below
+        self._election_timeout_ms_min: int = election_timeout_ms_min
+        self._election_timeout_ms_max: int = election_timeout_ms_max
+        self._loop_interval_ms: int = loop_interval_ms
 
     def start(self, host: str, port: int):
         LOG.debug("Node start host:%s port:%d", host, port)
+        self.reset_election_timeout()
         with self._lock:
             handlers: Dict[bytes, Callable] = {
                 b'vote': self.handle_request_vote,
@@ -60,7 +89,8 @@ class Node(object):
             self.do_follower()
             self.do_candidate()
             self.do_leader()
-            time.sleep(1)  # TODO: magic value?
+            time.sleep(self._loop_interval_ms / 1000)
+            self.decrease_election_timeout()
 
     def do_regular(self):
         with self._lock:
@@ -83,6 +113,11 @@ class Node(object):
             LOG.debug("Node is not follower")
             return
 
+        # if election timeout elapses without receiving AppendEntries RPC from current leader
+        # or granting vote to candidate: convert to candidate.
+        if self.get_election_timeout_ms() <= 0:
+            self.become_candidate()
+
     def do_candidate(self):
         # TODO: implement me
         LOG.debug("Node do_candidate")
@@ -96,6 +131,20 @@ class Node(object):
         if not self.is_leader():
             LOG.debug("Node is not leader")
             return
+
+    def get_election_timeout_ms(self):
+        with self._lock:
+            return self._election_timeout_ms
+
+    def decrease_election_timeout(self):
+        with self._lock:
+            self._election_timeout_ms = max(0, self._election_timeout_ms - self._loop_interval_ms)
+            LOG.debug("election timeout: %d", self._election_timeout_ms)
+
+    def reset_election_timeout(self):
+        with self._lock:
+            self._election_timeout_ms = random.randint(self._election_timeout_ms_min, self._election_timeout_ms_max)
+            LOG.debug("election timeout reset: %d", self._election_timeout_ms)
 
     def handle_append_entries(self, bytes_: bytes) -> Tuple[int, bool]:
         LOG.debug("Node handle_append_entries bytes:%s", bytes_)
@@ -185,9 +234,28 @@ class Node(object):
 
     def become_candidate(self) -> bool:
         LOG.debug("Node become_candidate")
+        # On conversion to candidate, start election:
         with self._lock:
             self._state = Node.STATE_CANDIDATE
-            return True
+            # increment currentTerm
+            self._node_persistent_state.increment_term()
+            # vote for self
+            self._node_persistent_state.set_voted_for(self._node_id)
+            # reset election timer
+            self._election_timeout_ms = random.randint(self._election_timeout_ms_min, self._election_timeout_ms_max)
+            # send RequestVote RPC to all other servers
+            current_term = self._node_persistent_state.get_term()
+            logs = self._node_persistent_state.get_logs()
+            last_log_idx = len(logs) - 1
+            try:
+                last_log_term = logs[-1]._term
+            except IndexError:
+                last_log_term = 0
+
+            msg = VoteMessage(current_term, self._node_id, last_log_idx, last_log_term)
+            for peer in self._peers:
+                self._client.send(peer, msg)
+        return True
 
     def is_follower(self) -> bool:
         LOG.debug("Node is_follower")

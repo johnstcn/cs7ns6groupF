@@ -4,12 +4,13 @@ import logging
 import socketserver
 import threading
 import time
+import random
 
 from node import Node
-# from peer import Peer
+from peer import Peer
 from states import NodePersistentState
-
-from rpc_client import *
+from rpc_client import RpcClient
+from messages import VoteMessage
 
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
@@ -25,7 +26,10 @@ def main():
     parser.add_argument("--host", type=str, default="0.0.0.0")
     parser.add_argument("--peers", type=str, nargs="+", default=[])
     parser.add_argument("--state", type=str, default="./state.json")
+    parser.add_argument("--random_seed", type=int, default=0)
     args = parser.parse_args()
+
+    random.seed(args.random_seed)
 
     socketserver.TCPServer.allow_reuse_address = True
     peers = []
@@ -48,7 +52,7 @@ def main():
         while True:
             if testingRPCClient:
                 if args.node_id == 0:
-                    t, s = client.send(peers[0], b"vote")
+                    t, s = client.send(peers[0], VoteMessage(term=0, candidate_id=0, last_log_idx=0, last_log_term=0))
                     print("Term", t, "Success?:", s)
             time.sleep(1)
     except KeyboardInterrupt:
