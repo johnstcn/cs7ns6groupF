@@ -15,3 +15,9 @@ class Peer(object):
 
     def hostport(self) -> Tuple[str, int]:
         return self._host, self._port
+
+    def __str__(self):
+        return "Peer(%d:%s:%d)" % (self._peer_id, self._host, self._port)
+
+    def __repr__(self):
+        return str(self)
