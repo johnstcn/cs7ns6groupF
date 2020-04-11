@@ -25,6 +25,9 @@ class VoteMessage(object):
     def __bytes__(self):
         return b'vote %d %d %d %d' % (self.term, self.candidate_id, self.last_log_idx, self.last_log_term)
 
+    def __repr__(self):
+        return str(bytes(self))
+
     @classmethod
     def from_bytes(cls, bytes_: bytes):
         bytes_ = bytes_.lstrip(b'vote ')
@@ -64,6 +67,9 @@ class AppendEntriesMessage(object):
         return b'append %d %d %d %d %d %s' % (
             self.term, self.leader_id, self.prev_log_idx, self.prev_log_term, self.leader_commit_idx, self.entry)
 
+    def __repr__(self):
+        return str(bytes(self))
+
     @classmethod
     def from_bytes(cls, bytes_: bytes):
         bytes_ = bytes_.lstrip(b'append ')
@@ -95,6 +101,8 @@ class DbEntriesMessage(object):
         return b'append %s' % (
             self.room)
 
+    def __repr__(self):
+        return str(bytes(self))
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
