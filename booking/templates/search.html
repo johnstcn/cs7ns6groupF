@@ -59,6 +59,34 @@
 
                 </div>
             </div>
+            <div >
+                <h1>Booked rooms</h1>
+            </div>
+            <div class="panel-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered table-hover">
+
+                        <thead>
+                        <tr>
+                            {% for i in labels %}
+                                <td><h3>{{ i }}</h3></td>
+                            {% endfor %}
+                        </tr>
+                        </thead>
+                    </table>
+
+                    <div>
+                        <div >
+                            {% for i in content1 %}
+                                &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp<span style="font-size: 2em; "><label for="name">{{ i }}
+                            </label>
+                                <br /></span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <br /><br />
+                </div>
+            </div>
         </div>
 
     </div>
