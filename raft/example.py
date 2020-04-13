@@ -9,10 +9,12 @@ import random
 from node import Node
 from peer import Peer
 from states import NodePersistentState
+from state_machine import DummyStateMachine
 from rpc_client import RpcClient
 from messages import VoteMessage
 
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
+
 
 def parse_peer(peer_str):
     peer_id, peer_host, peer_port_str = peer_str.split(":")
@@ -39,12 +41,13 @@ def main():
         peers.append(p)
 
     prev_state = NodePersistentState.load(args.state)
-    node = Node(args.node_id, prev_state, peers)
+    state_machine = DummyStateMachine()
+    node = Node(args.node_id, prev_state, peers, state_machine)
     node_thread = threading.Thread(target=node.start, args=[args.host, args.port])
     node_thread.daemon = True
     node_thread.start()
 
-    testingRPCClient = False    # Add to test RPC Client. Continuing example
+    testingRPCClient = False  # Add to test RPC Client. Continuing example
     if testingRPCClient:
         client = RpcClient()
 

@@ -7,7 +7,7 @@ import time
 from typing import List, Optional, Dict, Callable, Tuple
 
 from messages import AppendEntriesMessage, VoteMessage, DbEntriesMessage
-from state_machine import DummyStateMachine
+from state_machine import StateMachine, DummyStateMachine
 from peer import Peer
 from rpc_client import RpcClient
 from rpc_server import RpcServer
@@ -22,6 +22,7 @@ class NoisyLock(object):
     NoisyLock is just like threading.Lock except it noisily spams info about who locks and unlocks it.
     Useful for debugging, not so useful in prod.
     """
+
     def __init__(self):
         self._lock = threading.Lock()
 
@@ -46,6 +47,7 @@ class Node(object):
     STATE_LEADER = 2
 
     def __init__(self, node_id: int, persistent_state: 'NodePersistentState', peers: List[Peer],
+                 state_machine: StateMachine,
                  election_timeout_ms_min: int = 2000, election_timeout_ms_max: int = 10000,
                  loop_interval_ms: int = 1000):
         LOG.debug("Node init node_id: %d peers:%s persistent_state: %s", node_id, peers, persistent_state._fpath)
@@ -57,10 +59,10 @@ class Node(object):
         self._server: Optional[RpcServer] = None
         self._client: RpcClient = RpcClient()
         self._state: int = Node.STATE_FOLLOWER
-        #self._lock: threading.Lock = threading.Lock()
+        # self._lock: threading.Lock = threading.Lock()
         self._lock: NoisyLock = NoisyLock()
         self._last_heartbeat: float = 0.0
-        self._state_machine: DummyStateMachine = DummyStateMachine()
+        self._state_machine: StateMachine = state_machine
         self._should_step_down: bool = False
         self._election_timeout_ms = None  # set below
         self._election_timeout_ms_min: int = election_timeout_ms_min
@@ -266,7 +268,7 @@ class Node(object):
 
             msg = VoteMessage(current_term, self._node_id, last_log_idx, last_log_term)
             num_votes = 0
-            votes_needed = int(len(self._peers) / 2) + 1 # need a majority
+            votes_needed = int(len(self._peers) / 2) + 1  # need a majority
             for peer in self._peers:
                 # TODO: what to do with their term?
                 _, got_vote = self._client.send(peer, msg)
@@ -278,7 +280,8 @@ class Node(object):
                 else:
                     LOG.debug("become_candidate: lost vote from %s", peer)
 
-            LOG.debug("become_candidate: need %d/%d votes, got %d/%d", votes_needed, len(self._peers), num_votes, len(self._peers))
+            LOG.debug("become_candidate: need %d/%d votes, got %d/%d", votes_needed, len(self._peers), num_votes,
+                      len(self._peers))
             won_election = num_votes >= votes_needed
 
         if won_election:
