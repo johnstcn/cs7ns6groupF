@@ -12,6 +12,7 @@ from peer import Peer
 from rpc_client import RpcClient
 from rpc_server import RpcServer
 from states import NodePersistentState, NodeVolatileState, LeaderVolatileState, Entry
+import operation
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
@@ -239,8 +240,11 @@ class Node(object):
             # Get some request for database from flask-client probably
             # TODO Should take room from flask and initiate append logs for room booking
             msg: DbEntriesMessage = DbEntriesMessage.from_bytes(bytes_)
+            table_name = 'room'
+            conn = operation.connect('test.db')
+            result = operation.update(conn, table_name, msg)
 
-        return msg, True
+        return msg, result
 
     def is_leader(self) -> bool:
         LOG.debug("Node is_leader")

@@ -39,7 +39,7 @@ def search():
         result = dict()
         for idx in unoccupied_room_id:
             if request.values.get(str(idx)) == 'Y':
-                result[idx] = operation.update(conn, table_name, idx)
+                # result[idx] = operation.update(conn, table_name, idx)
                 message_sent, success = rpc_client.send(peer, b"db %d" % int(idx))
                 return redirect(url_for('.success_book', message=message_sent, s=success))
 
@@ -65,7 +65,7 @@ def test_raft():
 def success_book():
     messages = request.args['message']
     success = request.args['s']
-    if success == 'True':
+    if success == 0:
         return "Successfully booked " + messages + " room"
     else:
         return "Unsuccessfully booked " + messages + " room"
