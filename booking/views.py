@@ -29,7 +29,7 @@ def login():
 
 @sv.route('/search', methods=['GET', 'POST'])
 def search():
-    processor = ipc_test()                                          # Initialise Processor
+    rpc_client, peer = raft_set_up()                                          # Initialise RPC Client
     u = Room.query.filter(Room.RoomState == 'unoccupied').all()
     labels = ['RoomID']
     room_id = [i.RoomID for i in u]
@@ -38,9 +38,8 @@ def search():
         for idx in room_id:
             if request.values.get(idx) == 'Y':
                 result[idx] = db_operation.update(idx)
-                other_peers = processor.peers[: processor.id] + processor.peers[processor.id + 1:]  # Send to everyone
-                message = b"action %d" % int(idx)
-                processor.multicaster.multisend(message, other_peers)  # Processor sending message
+                message_sent, success = rpc_client.send(peer, b"db %d" % int(idx))
+                return redirect(url_for('.success_book', message=message_sent, s=success))
 
         if len(result):
             for idx, flag in result.items():
@@ -56,10 +55,18 @@ def search():
 @sv.route('/test_raft', methods=['GET'])
 def test_raft():
     rpcClient, peer = raft_set_up()
-    t, s = rpcClient.send(peer, b"db 101 102")
-    data = {"Term": t, "Success:": s}
+    t, s = rpcClient.send(peer, b"db 101")
+    data = {"Message Sent": t, "Success:": s}
     return data
 
+@sv.route('/success', methods=['GET'])
+def success_book():
+    messages = request.args['message']
+    success = request.args['s']
+    if success == 'True':
+        return "Successfully booked " + messages + " room"
+    else:
+        return "Unsuccessfully booked " + messages + " room"
 
 def ipc_test():
     id = int(os.environ['PEER_ID'])

@@ -225,6 +225,7 @@ class Node(object):
         LOG.debug("Node handle_database_request bytes:%s", bytes_)
         with self._lock:
             # Get some request for database from flask-client probably
+            # TODO Should take room from flask and initiate append logs for room booking
             msg: DbEntriesMessage = DbEntriesMessage.from_bytes(bytes_)
 
         return msg, True
