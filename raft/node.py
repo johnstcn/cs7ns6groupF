@@ -18,6 +18,10 @@ LOG.setLevel(logging.DEBUG)
 
 
 class NoisyLock(object):
+    """
+    NoisyLock is just like threading.Lock except it noisily spams info about who locks and unlocks it.
+    Useful for debugging, not so useful in prod.
+    """
     def __init__(self):
         self._lock = threading.Lock()
 
