@@ -137,6 +137,11 @@ class Node(object):
                 self._state = Node.STATE_FOLLOWER
                 return
 
+        # if election timeout elapses: start new election
+        if self.get_election_timeout_ms() <= 0:
+            self.become_candidate()
+
+
     def do_leader(self):
         # TODO: implement me
         LOG.debug("Node do_leader")
