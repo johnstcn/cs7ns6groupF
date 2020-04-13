@@ -2,15 +2,17 @@
 
 import logging
 
+from states import BookingData
+
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
 
 class StateMachine(object):
-    def apply(self, new_state):
+    def apply(self, data: BookingData):
         """
-        Apply the new state to the state machine
-        :param new_state:
+        Apply new data to the state machine
+        :param data: new BookingData
         :return:
         """
         pass
@@ -20,6 +22,6 @@ class DummyStateMachine(StateMachine):
     def __init__(self):
         self._states = []
 
-    def apply(self, new_state):
-        self._states.append(new_state)
-        LOG.debug("DummyStateMachine apply new_state:%s", new_state)
+    def apply(self, data: BookingData):
+        self._states.append(data)
+        LOG.debug("DummyStateMachine apply new_state:%s", data)

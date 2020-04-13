@@ -1,7 +1,7 @@
 #!/usr/bin/env python
+import datetime
 import json
 import logging
-import threading
 from typing import Optional, List
 
 LOG = logging.getLogger(__name__)
@@ -127,14 +127,40 @@ class NodePersistentState(object):
             f.write(str(self))
 
 
+class BookingData(object):
+    """
+    BookingData represents a room booking to be stored in the Raft log.
+    """
+
+    def __init__(self, room_id: int, booking_time: datetime.datetime):
+        self._room_id: int = room_id
+        self._booking_time: datetime.datetime = booking_time
+
+    def get_room_id(self) -> int:
+        return self._room_id
+
+    def get_booking_time(self) -> datetime.datetime:
+        return self._booking_time
+
+    @classmethod
+    def from_bytes(cls, bytes: bytes):
+        room_id_bytes, booking_time_bytes = bytes.split(b' ', maxsplit=2)
+        room_id = int(room_id_bytes)
+        booking_time = datetime.datetime.utcfromtimestamp(int(booking_time_bytes))
+        return BookingData(room_id, booking_time)
+
+    def __str__(self):
+        return '%d %d' % (self._room_id, int(self._booking_time.strftime('%s')))
+
+
 class Entry(object):
     """
     Entry represents a single log entry.
     """
 
-    def __init__(self, term, data):
-        self._term = term
-        self._data = data
+    def __init__(self, term: int, data: BookingData):
+        self._term: int = term
+        self._data: BookingData = data
 
     def __str__(self) -> str:
         d = {
