@@ -191,6 +191,13 @@ class Node(object):
                 self._node_volatile_state.set_commit_idx(new_commit_idx)
 
             self._last_heartbeat = time.time()
+            # If AppendEntries RPC received from new leader: convert to follower
+            if self._state == Node.STATE_CANDIDATE:
+                LOG.debug(
+                    'handle_append_entries: node_id:%s got AppendEntries from new leader node_id:%s -- stepping down',
+                    self._node_id,
+                    msg.leader_id)
+                self._state = Node.STATE_FOLLOWER
             return self._node_persistent_state.get_term(), True
 
     def handle_request_vote(self, bytes_: bytes):
