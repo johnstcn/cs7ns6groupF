@@ -63,7 +63,6 @@ class Node(object):
         self._state: int = Node.STATE_FOLLOWER
         self._lock: threading.Lock = threading.Lock()
         # self._lock: NoisyLock = NoisyLock()
-        self._last_heartbeat: float = 0.0
         self._dbconn: sqlite3.Connection = dbconn
         self._should_step_down: bool = False
         self._election_timeout_ms = None  # set below
@@ -146,7 +145,6 @@ class Node(object):
             self.become_candidate()
 
     def do_leader(self):
-        # TODO: send heartbeats
         if not self.is_leader():
             return
 
@@ -154,12 +152,12 @@ class Node(object):
             for peer in self._peers:
                 self.sync_peer(peer)
 
-    def sync_peer(self, peer):
+    def sync_peer(self, peer) -> bool:
         # If last log index ≥ nextIndex for a follower: send
         # AppendEntries RPC with log entries starting at nextIndex
         all_logs: List[Entry] = self._node_persistent_state.get_logs()
         if len(all_logs) == 0:
-            return  # nothing to replicate
+            return False  # nothing to replicate
 
         current_term = self._node_persistent_state.get_term()
         commit_idx = self._node_volatile_state.get_commit_idx()
@@ -167,7 +165,7 @@ class Node(object):
         while not synced:
             peer_next_idx: int = self._leader_volatile_state.get_next_idx(peer)
             if len(all_logs) < peer_next_idx:
-                continue  # peer is up to date as far as we can tell
+                return False  # peer is up to date as far as we can tell
 
             LOG.debug("sync_peer:%s current_term:%d commit_idx:%d peer_next_idx:%d", peer, current_term, commit_idx,
                       peer_next_idx)
@@ -195,6 +193,7 @@ class Node(object):
                 # If AppendEntries fails because of log inconsistency:
                 # decrement nextIndex and retry (§5.3)
                 self._leader_volatile_state.set_next_idx(peer, peer_next_idx - 1)
+        return synced
 
     def get_election_timeout_ms(self):
         with self._lock:
@@ -256,7 +255,6 @@ class Node(object):
                 new_commit_idx = min(msg.leader_commit_idx, last_commit_idx)
                 self._node_volatile_state.set_commit_idx(new_commit_idx)
 
-            self._last_heartbeat = time.time()
             # If AppendEntries RPC received from new leader: convert to follower
             if self._state == Node.STATE_CANDIDATE:
                 LOG.debug(
@@ -356,6 +354,9 @@ class Node(object):
             self._leader_volatile_state = LeaderVolatileState(last_log_idx, self._peers)
             LOG.debug("init leader volatile state: %s", self._leader_volatile_state)
 
+            for peer in self._peers:
+                threading.Thread(target=self.heartbeat, args=(peer,)).start()
+
     def is_candidate(self) -> bool:
         with self._lock:
             return self._state == Node.STATE_CANDIDATE
@@ -428,5 +429,40 @@ class Node(object):
                     LOG.debug("node_id:%s won election term:%d", self._node_id, curr_term)
                     self.become_leader()
 
+                elapsed_ms = int(time.time() - start)
+                time.sleep((self._loop_interval_ms - elapsed_ms) / 1000)
+
+    def heartbeat(self, peer):
+        while True:
+            if self._state != Node.STATE_LEADER:
+                return
+
+            start = time.time()
+            with self._lock:
+                current_term = self._node_persistent_state.get_term()
+                commit_idx = self._node_volatile_state.get_commit_idx()
+                peer_next_idx: int = self._leader_volatile_state.get_next_idx(peer)
+                LOG.debug("heartbeat:%s current_term:%d commit_idx:%d peer_next_idx:%d", peer, current_term, commit_idx,
+                          peer_next_idx)
+
+            msg: AppendEntriesMessage = AppendEntriesMessage(
+                current_term,
+                self._node_id,
+                peer_next_idx,
+                current_term,
+                commit_idx,
+                None,
+            )
+            try:
+                their_term, ok = self._client.send(peer, msg)
+                # If their term is suddenly higher than ours, we may need to relinquish our throne
+                if their_term > current_term:
+                    LOG.info("peer:%s term (%d) is greater than ours (%d), stepping down as leader",
+                             peer, their_term, current_term)
+                    self._state = Node.STATE_FOLLOWER
+                    self.reset_election_timeout()
+            except Exception as e:
+                LOG.warning("peer:%s heartbeat exception:%s", peer, e)
+            finally:
                 elapsed_ms = int(time.time() - start)
                 time.sleep((self._loop_interval_ms - elapsed_ms) / 1000)
