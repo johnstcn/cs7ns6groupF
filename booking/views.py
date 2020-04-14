@@ -5,6 +5,7 @@ import os
 from raft_example import *
 from raft_peer import Peer
 from raft_rpc_client import RpcClient
+import random
 import socketserver
 import threading
 
@@ -15,6 +16,7 @@ def raft_init():
     peer_value = os.environ['PEERS'].split(' ')
     self_info = os.environ['SELF']
     node_id, self_host, self_port = parse_peer(self_info)
+    random.seed(node_id) # for some measure of predictability
     state = './state.json'
     socketserver.TCPServer.allow_reuse_address = True
     peers = []
