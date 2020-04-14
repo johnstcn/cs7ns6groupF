@@ -97,7 +97,7 @@ class NodePersistentState(object):
         obj = {
             'current_term': self._current_term,
             'voted_for': self._voted_for,
-            'logs': self._logs,
+            'logs': [str(l) for l in self._logs],
         }
         return json.dumps(obj)
 
@@ -178,12 +178,11 @@ class Entry(object):
         self._term: int = term
         self._data: bytes = data
 
+    def __bytes__(self) -> bytes:
+        return b'%d %s' % (self._term, self._data)
+
     def __str__(self) -> str:
-        d = {
-            'term': self._term,
-            'data': self._data,
-        }
-        return json.dumps(d)
+        return str(bytes(self))
 
     def __eq__(self, o: object) -> bool:
         if not isinstance(o, Entry):
@@ -192,5 +191,5 @@ class Entry(object):
 
     @classmethod
     def from_bytes(self, _bytes):
-        d = json.loads(_bytes)
-        return Entry(d['term'], d['data'])
+        term, data = _bytes.split(b' ', maxsplit=1)
+        return Entry(term, data)

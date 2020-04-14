@@ -172,7 +172,7 @@ class Node(object):
 
             # if we get here, need to replicate logs from nextIndex onwards
             # for now, just doing one at a time
-            next_log_to_replicate = all_logs[peer_next_idx]
+            next_log_to_replicate = all_logs[peer_next_idx-1]
             prev_log_idx = peer_next_idx - 1
             prev_log_term = all_logs[prev_log_idx]._term
             msg: AppendEntriesMessage = AppendEntriesMessage(
@@ -215,10 +215,8 @@ class Node(object):
             if self._state == Node.STATE_LEADER:
                 LOG.warning("node_id:%s is leader but got AppendEntries, stepping down", self._node_id)
                 self._state = Node.STATE_FOLLOWER
-                return 0, False
 
             # if we get an AppendEntries message, reset election timeout and remember who's the boss
-
             self._election_timeout_ms = random.randint(self._election_timeout_ms_min, self._election_timeout_ms_max)
             LOG.debug("got AppendEntries msg: election timeout reset: %d", self._election_timeout_ms)
 
@@ -298,7 +296,7 @@ class Node(object):
         if not self.is_leader():
             # TODO: return the leader ID
             LOG.warning("handle_database_request: not leader")
-            return 0, False
+            return -1, False
 
         with self._lock:
             # sanity check: we want it to be a valid message before we commit it
@@ -332,10 +330,6 @@ class Node(object):
                 return 0, False
 
             return log_idx, True
-            # # at this point, we can safely commit to our own log
-            # table_name = 'room'
-            # conn = operation.connect('/app/raft/db/test.db')
-            # result = operation.update(conn, table_name, msg)
 
     def is_leader(self) -> bool:
         with self._lock:

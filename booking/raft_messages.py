@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import logging
-from typing import Optional
+from typing import Optional, List
 
 from raft_states import Entry
 
@@ -79,10 +79,9 @@ class AppendEntriesMessage(object):
     @classmethod
     def from_bytes(cls, bytes_: bytes):
         bytes_ = bytes_.lstrip(b'append ')
-        parts = bytes_.split(b' ', maxsplit=6)  # entry may contain spaces
-        assert len(parts) in [5,
-                              6], 'AppendEntriesMessage.from_bytes expected either 5 or 6 parts after stripping leading' \
-                                  '"vote" but got %d' % len(parts)
+        parts: List[bytes] = bytes_.split(b' ', maxsplit=5)  # entry may contain spaces
+        assert len(parts) in [5, 6], 'AppendEntriesMessage.from_bytes expected either 5 or 6 parts after stripping' \
+                'leading "append" from %s but got %d' % (bytes_, len(parts))
         term: int = int(parts.pop(0))
         leader_id: int = int(parts.pop(0))
         prev_log_idx: int = int(parts.pop(0))
@@ -104,14 +103,14 @@ class DbEntriesMessage(object):
         self.room: int = room
 
     def __bytes__(self):
-        return b'append %d' % (self.room)
+        return b'db %d' % (self.room)
 
     def __repr__(self):
         return str(bytes(self))
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
-        bytes_ = bytes_.lstrip(b'append ')
+        bytes_ = bytes_.lstrip(b'db ')
         parts = bytes_.split(b' ')  # entry may contain spaces
         room: int = int(parts.pop(0))
         return DbEntriesMessage(room)
