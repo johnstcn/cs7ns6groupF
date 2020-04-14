@@ -23,5 +23,5 @@ class RpcClient(object):
                 success = success_str == b'1'
                 return term, success
             except Exception as e:
-                LOG.warning("Got RpcClient Exception", e)
+                LOG.warning("Got RpcClient Exception: %s", e)
                 raise
