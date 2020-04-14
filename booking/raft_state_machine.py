@@ -2,7 +2,7 @@
 
 import logging
 
-from states import BookingData
+from raft_states import BookingData
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)

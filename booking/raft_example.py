@@ -6,12 +6,12 @@ import threading
 import time
 import random
 
-from node import Node
-from peer import Peer
-from states import NodePersistentState
-from state_machine import DummyStateMachine
-from rpc_client import RpcClient
-from messages import VoteMessage
+from raft_node import Node
+from raft_peer import Peer
+from raft_states import NodePersistentState
+from raft_state_machine import DummyStateMachine
+from raft_rpc_client import RpcClient
+from raft_messages import VoteMessage
 
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 

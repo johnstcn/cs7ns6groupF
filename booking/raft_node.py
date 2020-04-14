@@ -6,12 +6,12 @@ import threading
 import time
 from typing import List, Optional, Dict, Callable, Tuple
 
-from messages import AppendEntriesMessage, VoteMessage, DbEntriesMessage
-from state_machine import StateMachine, DummyStateMachine
-from peer import Peer
-from rpc_client import RpcClient
-from rpc_server import RpcServer
-from states import NodePersistentState, NodeVolatileState, LeaderVolatileState, Entry
+from raft_messages import AppendEntriesMessage, VoteMessage, DbEntriesMessage
+from raft_state_machine import StateMachine, DummyStateMachine
+from raft_peer import Peer
+from raft_rpc_client import RpcClient
+from raft_rpc_server import RpcServer
+from raft_states import NodePersistentState, NodeVolatileState, LeaderVolatileState, Entry
 import operation
 
 LOG = logging.getLogger(__name__)

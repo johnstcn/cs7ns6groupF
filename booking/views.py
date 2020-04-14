@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from forms.login import LoginForm
 import operation
 import os
-from example import *
+from raft_example import parse_peer
 
 
 sv = Blueprint("sv", __name__)  # initialise a Blueprint instance

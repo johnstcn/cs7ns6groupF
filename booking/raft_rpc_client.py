@@ -3,7 +3,7 @@ import logging
 import socket
 from typing import Tuple, Optional
 
-from peer import Peer
+from raft_peer import Peer
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)

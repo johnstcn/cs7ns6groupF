@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Optional, List, Dict
 
-from peer import Peer
+from raft_peer import Peer
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
