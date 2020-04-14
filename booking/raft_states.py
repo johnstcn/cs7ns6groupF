@@ -104,9 +104,10 @@ class NodePersistentState(object):
     def get_term(self) -> int:
         return self._current_term
 
-    def increment_term(self):
+    def increment_term(self) -> int:
         self._current_term += 1
         self._save()
+        return self._current_term
 
     def get_voted_for(self) -> Optional[int]:
         return self._voted_for

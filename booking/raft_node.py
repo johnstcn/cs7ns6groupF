@@ -349,13 +349,12 @@ class Node(object):
         with self._lock:
             self._state = Node.STATE_CANDIDATE
             # increment currentTerm
-            self._node_persistent_state.increment_term()
+            current_term = self._node_persistent_state.increment_term()
             # vote for self
             self._node_persistent_state.set_voted_for(self._node_id)
             # reset election timer
             self._election_timeout_ms = random.randint(self._election_timeout_ms_min, self._election_timeout_ms_max)
             # send RequestVote RPC to all other servers
-            current_term = self._node_persistent_state.get_term()
             logs = self._node_persistent_state.get_logs()
             last_log_idx = max(len(logs) - 1, 0)
             try:
