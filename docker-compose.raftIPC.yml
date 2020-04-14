@@ -16,6 +16,7 @@ services:
             - "9000:9000"
         volumes:
             - "${PWD}/data:/data"
+            - "${PWD}/data/db_0:/app/raft/db"
         environment:
             PEER_ID: 0
             PEERS: 1:peer1:9001 2:peer2:9002
@@ -30,6 +31,7 @@ services:
             - "9001:9001"
         volumes:
             - "${PWD}/data:/data"
+            - "${PWD}/data/db_1:/app/raft/db"
         environment:
             PEER_ID: 1
             PEERS: 0:peer0:9000 2:peer2:9002
@@ -51,13 +53,26 @@ services:
             PORT: 9002
             HOST_NAME: peer2
 
-    flask:
+    flask1:
         image: cs7ns6groupf:latest
         build: .
         ports:
             - "5000:5000"
         volumes:
             - "${PWD}/data:/data"
+            - "${PWD}/data/db_0:/app/raft/db"
         environment:
             PEER_ID: 0
             PEERS: 0:peer0:9000
+
+    flask2:
+        image: cs7ns6groupf:latest
+        build: .
+        ports:
+            - "5001:5000"
+        volumes:
+            - "${PWD}/data:/data"
+            - "${PWD}/data/db_1:/app/raft/db"
+        environment:
+            PEER_ID: 1
+            PEERS: 1:peer1:9001

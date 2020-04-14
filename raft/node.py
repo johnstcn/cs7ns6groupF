@@ -241,7 +241,7 @@ class Node(object):
             # TODO Should take room from flask and initiate append logs for room booking
             msg: DbEntriesMessage = DbEntriesMessage.from_bytes(bytes_)
             table_name = 'room'
-            conn = operation.connect('test.db')
+            conn = operation.connect('/app/raft/db/test.db')
             result = operation.update(conn, table_name, msg)
 
         return msg, result

@@ -28,7 +28,7 @@ def login():
 @sv.route('/search', methods=['GET', 'POST'])
 def search():
     rpc_client, peer = raft_set_up()
-    conn = operation.connect('test.db')
+    conn = operation.connect('/app/raft/db/test.db')
     table_name = 'room'
     unoccupied = operation.select(conn, table_name)
     occupied = operation.select(conn, table_name, 'occupied')
