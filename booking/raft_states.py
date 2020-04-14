@@ -18,19 +18,19 @@ class LeaderVolatileState(object):
     """
 
     def __init__(self, last_log_index: int, known_peers: List[Peer]):
-        self._next_idx: Dict[int, int] = { peer : last_log_index + 1 for peer in known_peers }
-        self._match_idx: Dict[int, int] = { peer: 0 for peer in known_peers }
+        self._next_idx: Dict[Peer, int] = { peer : last_log_index + 1 for peer in known_peers }
+        self._match_idx: Dict[Peer, int] = { peer: 0 for peer in known_peers }
 
-    def set_next_idx(self, k: int, v: int):
+    def set_next_idx(self, k: Peer, v: int):
         self._next_idx[k] = v
 
-    def get_next_idx(self, k: int) -> int:
+    def get_next_idx(self, k: Peer) -> int:
         return self._next_idx[k]
 
-    def set_match_idx(self, k: int, v: int):
+    def set_match_idx(self, k: Peer, v: int):
         self._match_idx[k] = v
 
-    def get_match_idx(self, k: int) -> int:
+    def get_match_idx(self, k: Peer) -> int:
         return self._match_idx[k]
 
     def __str__(self):
