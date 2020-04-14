@@ -2,6 +2,7 @@
 import inspect
 import logging
 import random
+import sqlite3
 import threading
 import time
 from typing import List, Optional, Dict, Callable, Tuple
@@ -48,7 +49,7 @@ class Node(object):
     STATE_LEADER = 2
 
     def __init__(self, node_id: int, persistent_state: 'NodePersistentState', peers: List[Peer],
-                 state_machine: StateMachine,
+                 dbconn: sqlite3.Connection,
                  election_timeout_ms_min: int = 2000, election_timeout_ms_max: int = 10000,
                  loop_interval_ms: int = 1000):
         LOG.debug("Node init node_id: %d peers:%s persistent_state: %s", node_id, peers, persistent_state._fpath)
@@ -63,7 +64,7 @@ class Node(object):
         self._lock: threading.Lock = threading.Lock()
         # self._lock: NoisyLock = NoisyLock()
         self._last_heartbeat: float = 0.0
-        self._state_machine: StateMachine = state_machine
+        self._dbconn: sqlite3.Connection = dbconn
         self._should_step_down: bool = False
         self._election_timeout_ms = None  # set below
         self._election_timeout_ms_min: int = election_timeout_ms_min
@@ -101,17 +102,21 @@ class Node(object):
 
     def do_regular(self):
         with self._lock:
-            curr_commit_idx = self._node_volatile_state.get_commit_idx()
-            curr_last_applied = self._node_volatile_state.get_last_applied()
-            LOG.debug("Node do_regular commit_idx:%d last_applied:%d", curr_commit_idx, curr_last_applied)
-            if curr_commit_idx > curr_last_applied:
-                curr_last_applied += 1
-                self._state_machine.apply(self._node_persistent_state.get_logs()[curr_last_applied])
-                self._node_volatile_state.set_last_applied(curr_last_applied)
-
             if self._should_step_down:
                 LOG.debug("Node do_regular: stepping down")
                 self._state = Node.STATE_FOLLOWER
+
+            curr_commit_idx = self._node_volatile_state.get_commit_idx()
+            while True:
+                curr_last_applied = self._node_volatile_state.get_last_applied()
+                LOG.debug("Node do_regular commit_idx:%d last_applied:%d", curr_commit_idx, curr_last_applied)
+                if curr_commit_idx >= curr_last_applied:
+                    break
+                curr_last_applied += 1
+                entry: Entry = self._node_persistent_state.get_logs()[curr_last_applied]
+                db_msg = DbEntriesMessage.from_bytes(entry._data)
+                operation.insert(self._dbconn, "room", db_msg.room, 'occupied')
+                self._node_volatile_state.set_last_applied(curr_last_applied)
 
     def do_follower(self):
         if not self.is_follower():
@@ -229,6 +234,7 @@ class Node(object):
         LOG.debug("Node handle_database_request bytes:%s", bytes_)
         if not self.is_leader():
             # TODO: return the leader ID
+            LOG.warning("handle_database_request: not leader")
             return 0, False
 
         with self._lock:
