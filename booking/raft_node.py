@@ -219,7 +219,8 @@ class Node(object):
             existing_logs: List[Entry] = self._node_persistent_state.get_logs()
             try:
                 existing_entry = existing_logs[msg.prev_log_idx]
-            except KeyError:
+            except IndexError:
+                LOG.debug('handle_append_entries: node_id:%d did not find existing entry with idx:%d', self._node_id, msg.prev_log_idx)
                 return current_term, False
 
             if existing_entry._term != msg.prev_log_term:
@@ -227,6 +228,7 @@ class Node(object):
                 # and all that follow it (§5.3)
                 pruned_logs = existing_logs[:msg.prev_log_idx + 1]
                 self._node_persistent_state.set_logs(pruned_logs)
+                LOG.debug('handle_append_entries: node_id:%d did not find existing entry with idx:%d', self._node_id, msg.prev_log_idx)
                 return current_term, False
 
             last_commit_idx = len(existing_logs) - 1
@@ -330,6 +332,8 @@ class Node(object):
         with self._lock:
             if self._state == Node.STATE_LEADER:
                 return False
+
+            self._state = Node.STATE_LEADER
             # reinitialize leader volatile state after an election
             last_log_idx, _ = self._node_persistent_state.get_last_log()
             self._leader_volatile_state = LeaderVolatileState(last_log_idx, self._peers)

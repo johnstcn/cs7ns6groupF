@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import logging
+from typing import Optional
 
 from raft_states import Entry
 
@@ -57,15 +58,18 @@ class AppendEntriesMessage(object):
     """
 
     def __init__(self, term: int, leader_id: int, prev_log_idx: int, prev_log_term: int, leader_commit_idx: int,
-                 entry: Entry):
+                 entry: Optional['Entry']):
         self.term: int = term
         self.leader_id: int = leader_id
         self.prev_log_idx: int = prev_log_idx
         self.prev_log_term: int = prev_log_term
         self.leader_commit_idx: int = leader_commit_idx
-        self.entry: Entry = entry
+        self.entry: Optional['Entry'] = entry
 
     def __bytes__(self):
+        if self.entry is None:
+            return b'append %d %d %d %d %d' % (
+                self.term, self.leader_id, self.prev_log_idx, self.prev_log_term, self.leader_commit_idx)
         return b'append %d %d %d %d %d %s' % (
             self.term, self.leader_id, self.prev_log_idx, self.prev_log_term, self.leader_commit_idx, self.entry)
 
