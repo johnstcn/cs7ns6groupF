@@ -60,8 +60,8 @@ class Node(object):
         self._server: Optional[RpcServer] = None
         self._client: RpcClient = RpcClient()
         self._state: int = Node.STATE_FOLLOWER
-        # self._lock: threading.Lock = threading.Lock()
-        self._lock: NoisyLock = NoisyLock()
+        self._lock: threading.Lock = threading.Lock()
+        # self._lock: NoisyLock = NoisyLock()
         self._last_heartbeat: float = 0.0
         self._state_machine: StateMachine = state_machine
         self._should_step_down: bool = False
@@ -114,10 +114,7 @@ class Node(object):
                 self._state = Node.STATE_FOLLOWER
 
     def do_follower(self):
-        # TODO: implement me
-        LOG.debug("Node do_follower")
         if not self.is_follower():
-            LOG.debug("Node is not follower")
             return
 
         # if election timeout elapses without receiving AppendEntries RPC from current leader
@@ -126,10 +123,7 @@ class Node(object):
             self.become_candidate()
 
     def do_candidate(self):
-        # TODO: implement me
-        LOG.debug("Node do_candidate")
         if not self.is_candidate():
-            LOG.debug("Node is not candidate")
             return
 
         with self._lock:
@@ -142,12 +136,9 @@ class Node(object):
         if self.get_election_timeout_ms() <= 0:
             self.become_candidate()
 
-
     def do_leader(self):
         # TODO: implement me
-        LOG.debug("Node do_leader")
         if not self.is_leader():
-            LOG.debug("Node is not leader")
             return
 
     def get_election_timeout_ms(self):
@@ -247,24 +238,22 @@ class Node(object):
         return msg, result
 
     def is_leader(self) -> bool:
-        LOG.debug("Node is_leader")
         with self._lock:
             return self._state == Node.STATE_LEADER
 
     def become_leader(self) -> bool:
-        LOG.debug("Node become_leader")
+        LOG.debug("node_id:%d becoming leader", self._node_id)
         with self._lock:
             if self._state == Node.STATE_LEADER:
                 return False
             raise NotImplementedError
 
     def is_candidate(self) -> bool:
-        LOG.debug("Node is_candidate")
         with self._lock:
             return self._state == Node.STATE_CANDIDATE
 
     def become_candidate(self) -> bool:
-        LOG.debug("Node become_candidate")
+        LOG.debug("node_id:%d becoming candidate", self._node_id)
         # On conversion to candidate, start election:
         with self._lock:
             self._state = Node.STATE_CANDIDATE
@@ -307,12 +296,11 @@ class Node(object):
         return True
 
     def is_follower(self) -> bool:
-        LOG.debug("Node is_follower")
         with self._lock:
             return self._state == Node.STATE_FOLLOWER
 
     def become_follower(self) -> bool:
-        LOG.debug("Node become_follower")
+        LOG.debug("node_id:%d becoming follower", self._node_id)
         with self._lock:
             self._state = Node.STATE_FOLLOWER
             return True
