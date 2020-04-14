@@ -70,6 +70,7 @@ class Node(object):
         self._election_timeout_ms_min: int = election_timeout_ms_min
         self._election_timeout_ms_max: int = election_timeout_ms_max
         self._loop_interval_ms: int = loop_interval_ms
+        self._votes = 0
 
     def start(self, host: str, port: int):
         LOG.debug("Node start host:%s port:%d", host, port)
@@ -347,6 +348,7 @@ class Node(object):
                 return False
 
             self._state = Node.STATE_LEADER
+            self._votes = 0
             # reinitialize leader volatile state after an election
             last_log_idx, _ = self._node_persistent_state.get_last_log()
             self._leader_volatile_state = LeaderVolatileState(last_log_idx, self._peers)
@@ -375,27 +377,9 @@ class Node(object):
             except IndexError:
                 last_log_term = 0
 
-            msg = VoteMessage(current_term, self._node_id, last_log_idx, last_log_term)
-            num_votes = 0
-            votes_needed = int(len(self._peers) / 2) + 1  # need a majority
             for peer in self._peers:
-                # TODO: what to do with their term?
-                _, got_vote = self._client.send(peer, msg)
-                if got_vote is None:
-                    LOG.error("become_candidate: could not get vote from %s", peer)
-                elif got_vote:
-                    LOG.debug("become_candidate: got vote from %s", peer)
-                    num_votes += got_vote
-                else:
-                    LOG.debug("become_candidate: lost vote from %s", peer)
-
-            LOG.debug("become_candidate: need %d/%d votes, got %d/%d", votes_needed, len(self._peers), num_votes,
-                      len(self._peers))
-            won_election = num_votes >= votes_needed
-
-        if won_election:
-            LOG.debug("become_candidate: node_id:%d yay I won!", self._node_id)
-            self.become_leader()
+                threading.Thread(target=self.request_vote,
+                                 args=(peer, current_term, last_log_idx, last_log_term)).start()
         return True
 
     def is_follower(self) -> bool:
@@ -407,3 +391,40 @@ class Node(object):
         with self._lock:
             self._state = Node.STATE_FOLLOWER
             return True
+
+    def request_vote(self, peer: Peer, curr_term: int, last_log_idx: int, last_log_term: int):
+        msg = VoteMessage(curr_term, self._node_id, last_log_idx, last_log_term)
+        while True:
+            with self._lock:
+                if self._state != Node.STATE_CANDIDATE or self._node_persistent_state.get_term() != curr_term:
+                    LOG.info("request_vote: node_id:%d no longer polling for votes in term:%d", self._node_id,
+                             curr_term)
+                    return
+            start = time.time()
+            try:
+                their_term, got_vote = self._client.send(peer, msg)
+                if got_vote is None:
+                    # We did not get receive a vote for one of two reasons:
+                    # 1) Our logs are out of date, or
+                    # 2) Our term is older.
+                    # In either case, update our term and become a follower
+                    # But first, a sanity check:
+                    with self._lock:
+                        self._node_persistent_state.set_term(their_term)
+                        self._state = Node.STATE_FOLLOWER
+                        return
+
+                # cool, we got a vote!
+                # make sure we're still a candidate
+                with self._lock:
+                    if self._state == Node.STATE_CANDIDATE:
+                        self._votes += 1
+            except Exception as e:
+                LOG.error("request_vote: exception requesting vote from peer:%s: %s", peer, e)
+            finally:
+                if self._votes > len(self._peers) / 2:
+                    LOG.debug("node_id:%s won election term:%d", self._node_id, curr_term)
+                    self.become_leader()
+
+                elapsed_ms = int(time.time() - start)
+                time.sleep((self._loop_interval_ms - elapsed_ms) / 1000)
