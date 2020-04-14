@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import logging
 
+from raft_states import Entry
+
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
@@ -55,13 +57,13 @@ class AppendEntriesMessage(object):
     """
 
     def __init__(self, term: int, leader_id: int, prev_log_idx: int, prev_log_term: int, leader_commit_idx: int,
-                 entry):
-        self.term = term
-        self.leader_id = leader_id
-        self.prev_log_idx = prev_log_idx
-        self.prev_log_term = prev_log_term
-        self.leader_commit_idx = leader_commit_idx
-        self.entry = entry
+                 entry: Entry):
+        self.term: int = term
+        self.leader_id: int = leader_id
+        self.prev_log_idx: int = prev_log_idx
+        self.prev_log_term: int = prev_log_term
+        self.leader_commit_idx: int = leader_commit_idx
+        self.entry: Entry = entry
 
     def __bytes__(self):
         return b'append %d %d %d %d %d %s' % (
@@ -77,15 +79,15 @@ class AppendEntriesMessage(object):
         assert len(parts) in [5,
                               6], 'AppendEntriesMessage.from_bytes expected either 5 or 6 parts after stripping leading' \
                                   '"vote" but got %d' % len(parts)
-        term = int(parts.pop(0))
-        leader_id = int(parts.pop(0))
-        prev_log_idx = int(parts.pop(0))
-        prev_log_term = int(parts.pop(0))
-        leader_commit_idx = int(parts.pop(0))
+        term: int = int(parts.pop(0))
+        leader_id: int = int(parts.pop(0))
+        prev_log_idx: int = int(parts.pop(0))
+        prev_log_term: int = int(parts.pop(0))
+        leader_commit_idx: int = int(parts.pop(0))
         try:
-            entry = parts.pop(0)
+            entry = Entry.from_bytes(parts.pop(0))
         except IndexError:
-            entry = b''
+            entry = None
         return AppendEntriesMessage(term, leader_id, prev_log_idx, prev_log_term, leader_commit_idx, entry)
 
 
@@ -94,12 +96,13 @@ class DbEntriesMessage(object):
     # Database entry message class. Use to help with paring message in relation to Database.
     # """
 
-    def __init__(self, room):
-        self.room = room
+    def __init__(self, room: int, booking_time: int):
+        self.room: int = room
+        self.booking_timestamp: int = booking_time
 
     def __bytes__(self):
-        return b'append %s' % (
-            self.room)
+        return b'append %d %d' % (
+            self.room, self.booking_timestamp)
 
     def __repr__(self):
         return str(bytes(self))
@@ -108,5 +111,6 @@ class DbEntriesMessage(object):
     def from_bytes(cls, bytes_: bytes):
         bytes_ = bytes_.lstrip(b'db ')
         parts = bytes_.split(b' ')  # entry may contain spaces
-        room = int(parts.pop(0))
-        return room
+        room: int = int(parts.pop(0))
+        booking_timestamp: int = int(parts.pop(0))
+        return DbEntriesMessage(room, booking_timestamp)
