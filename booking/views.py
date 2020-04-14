@@ -2,12 +2,36 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash
 from forms.login import LoginForm
 import operation
 import os
-from raft_example import parse_peer
+from raft_example import *
 from raft_peer import Peer
 from raft_rpc_client import RpcClient
+import socketserver
+import threading
 
 sv = Blueprint("sv", __name__)  # initialise a Blueprint instance
 
+
+def raft_init():
+    peer_value = os.environ['PEERS'].split(' ')
+    self_info = os.environ['SELF']
+    node_id, self_host, self_port = parse_peer(self_info)
+    state = './state.json'
+    socketserver.TCPServer.allow_reuse_address = True
+    peers = []
+    for i, peer_str in enumerate(peer_value):
+        peer_id, host, port = parse_peer(peer_str)
+        p = Peer(peer_id, host, port)
+        peers.append(p)
+
+    prev_state = NodePersistentState.load(state)
+    state_machine = DummyStateMachine()
+    node = Node(node_id, prev_state, peers, state_machine)
+    node_thread = threading.Thread(target=node.start, args=[self_host, self_port])
+    node_thread.daemon = True
+    node_thread.start()
+
+
+raft_init()
 
 @sv.route('/user/<name>')
 def user(name):
@@ -28,7 +52,7 @@ def login():
 
 @sv.route('/search', methods=['GET', 'POST'])
 def search():
-    rpc_client, peer = raft_set_up()
+    rpc_client, peer = rpc_set_up()
     conn = operation.connect('./test.db')
     table_name = 'room'
     unoccupied = operation.select(conn, table_name)
@@ -85,8 +109,8 @@ def success_book():
         return "Unsuccessfully booked " + messages + " room"
 
 
-def raft_set_up():
-    peer_value = os.environ['PEERS']
+def rpc_set_up():
+    peer_value = os.environ['SELF']
     peer_id, host, port = parse_peer(peer_value)
     p = Peer(peer_id, host, port)
     client = RpcClient()

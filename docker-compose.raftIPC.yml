@@ -8,71 +8,41 @@ services:
 #        volumes:
 #            - "${PWD}/data:/data"
     peer0:
-        image: cs7ns6groupf-raft:latest
-        build:
-            context: .
-            dockerfile: raft.Dockerfile
-        ports:
-            - "9000:9000"
-        volumes:
-            - "${PWD}/data:/data"
-            - "${PWD}/data/db_0:/app/raft/db"
-        environment:
-            PEER_ID: 0
-            PEERS: 1:peer1:9001 2:peer2:9002
-            PORT: 9000
-            HOST_NAME: peer0
-    peer1:
-        image: cs7ns6groupf-raft:latest
-        build:
-            context: .
-            dockerfile: raft.Dockerfile
-        ports:
-            - "9001:9001"
-        volumes:
-            - "${PWD}/data:/data"
-            - "${PWD}/data/db_1:/app/raft/db"
-        environment:
-            PEER_ID: 1
-            PEERS: 0:peer0:9000 2:peer2:9002
-            PORT: 9001
-            HOST_NAME: peer1
-
-    peer2:
-        image: cs7ns6groupf-raft:latest
-        build:
-            context: .
-            dockerfile: raft.Dockerfile
-        ports:
-            - "9002:9002"
-        volumes:
-            - "${PWD}/data:/data"
-        environment:
-            PEER_ID: 2
-            PEERS: 0:peer0:9000 1:peer1:9001
-            PORT: 9002
-            HOST_NAME: peer2
-
-    flask1:
         image: cs7ns6groupf:latest
         build: .
         ports:
             - "5000:5000"
+            - "9000:9000"
         volumes:
             - "${PWD}/data:/data"
-            - "${PWD}/data/db_0:/app/raft/db"
         environment:
-            PEER_ID: 0
-            PEERS: 0:peer0:9000
+            SELF_ID: 0
+            SELF: 0:peer0:9000
+            PEERS: 1:peer1:9001 2:peer2:9002
 
-    flask2:
+    peer1:
         image: cs7ns6groupf:latest
         build: .
         ports:
             - "5001:5000"
+            - "9001:9001"
         volumes:
             - "${PWD}/data:/data"
-            - "${PWD}/data/db_1:/app/raft/db"
         environment:
-            PEER_ID: 1
-            PEERS: 1:peer1:9001
+            SELF_ID: 1
+            SELF: 1:peer1:9001
+            PEERS: 0:peer0:9000 2:peer2:9002
+
+    peer2:
+        image: cs7ns6groupf:latest
+        build: .
+        ports:
+            - "5002:5000"
+            - "9002:9002"
+        volumes:
+            - "${PWD}/data:/data"
+        environment:
+            SELF_ID: 2
+            SELF: 2:peer2:9002
+            PEERS: 0:peer0:9000 1:peer1:9001
+
