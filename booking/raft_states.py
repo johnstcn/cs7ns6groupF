@@ -127,6 +127,12 @@ class NodePersistentState(object):
         self._logs = [l for l in logs]
         self._save()
 
+    def get_last_log(self) -> (int, 'Entry'):
+        try:
+            return self._logs[-1]
+        except IndexError:
+            return 0, None
+
     def _save(self):
         with open(self._fpath, 'w') as f:
             f.write(str(self))
