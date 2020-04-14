@@ -3,7 +3,8 @@ from forms.login import LoginForm
 import operation
 import os
 from raft_example import parse_peer
-
+from raft_peer import Peer
+from raft_rpc_client import RpcClient
 
 sv = Blueprint("sv", __name__)  # initialise a Blueprint instance
 
@@ -28,7 +29,7 @@ def login():
 @sv.route('/search', methods=['GET', 'POST'])
 def search():
     rpc_client, peer = raft_set_up()
-    conn = operation.connect('/app/raft/db/test.db')
+    conn = operation.connect('./test.db')
     table_name = 'room'
     unoccupied = operation.select(conn, table_name)
     occupied = operation.select(conn, table_name, 'occupied')
