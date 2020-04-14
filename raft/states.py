@@ -2,7 +2,7 @@
 import datetime
 import json
 import logging
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
@@ -16,19 +16,19 @@ class LeaderVolatileState(object):
     """
 
     def __init__(self):
-        self._next_idx = {}
-        self._match_idx = {}
+        self._next_idx: Dict[int, int] = {}
+        self._match_idx: Dict[int, int] = {}
 
-    def set_next_idx(self, k, v):
+    def set_next_idx(self, k: int, v: int):
         self._next_idx[k] = v
 
-    def get_next_idx(self, k):
+    def get_next_idx(self, k: int) -> int:
         return self._next_idx[k]
 
-    def set_match_idx(self, k, v):
+    def set_match_idx(self, k: int, v: int):
         self._match_idx[k] = v
 
-    def get_match_idx(self, k):
+    def get_match_idx(self, k: int) -> int:
         return self._match_idx[k]
 
 
@@ -40,19 +40,19 @@ class NodeVolatileState(object):
     """
 
     def __init__(self):
-        self._commit_idx = 0
-        self._last_applied = 0
+        self._commit_idx: int = 0
+        self._last_applied: int = 0
 
-    def get_commit_idx(self):
+    def get_commit_idx(self) -> int:
         return self._commit_idx
 
-    def get_last_applied(self):
+    def get_last_applied(self) -> int:
         return self._last_applied
 
-    def set_commit_idx(self, idx):
+    def set_commit_idx(self, idx: int):
         self._commit_idx = idx
 
-    def set_last_applied(self, idx):
+    def set_last_applied(self, idx: int):
         self._last_applied = idx
 
 
@@ -82,13 +82,13 @@ class NodePersistentState(object):
                 logs.append(Entry(term, data))
             return NodePersistentState(fpath, current_term, voted_for, logs)
 
-    def __init__(self, fpath, current_term, voted_for, logs):
-        self._fpath = fpath
-        self._current_term = current_term
-        self._voted_for = voted_for
-        self._logs = logs
+    def __init__(self, fpath: str, current_term: int, voted_for: int, logs: List['Entry']):
+        self._fpath: str = fpath
+        self._current_term: int = current_term
+        self._voted_for: int = voted_for
+        self._logs: List['Entry'] = logs
 
-    def __str__(self):
+    def __str__(self) -> str:
         obj = {
             'current_term': self._current_term,
             'voted_for': self._voted_for,
