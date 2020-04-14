@@ -98,13 +98,15 @@ class Node(object):
             self.do_candidate()
             self.do_leader()
             time.sleep(self._loop_interval_ms / 1000)
-            self.decrease_election_timeout()
+            if not self.is_leader():
+                self.decrease_election_timeout()
 
     def do_regular(self):
         with self._lock:
             if self._should_step_down:
                 LOG.debug("Node do_regular: stepping down")
                 self._state = Node.STATE_FOLLOWER
+                self._should_step_down = False
 
             curr_commit_idx = self._node_volatile_state.get_commit_idx()
             while True:
@@ -135,6 +137,7 @@ class Node(object):
             if self._should_step_down:
                 LOG.info("stepping down from candidate to follower")
                 self._state = Node.STATE_FOLLOWER
+                self._should_step_down = False
                 return
 
         # if election timeout elapses: start new election
@@ -209,6 +212,16 @@ class Node(object):
     def handle_append_entries(self, bytes_: bytes) -> Tuple[int, bool]:
         LOG.debug("Node handle_append_entries bytes:%s", bytes_)
         with self._lock:
+            if self._state == Node.STATE_LEADER:
+                self._should_step_down = True
+                LOG.warning("node_id:%s is leader but got AppendEntries, stepping down")
+                return 0, False
+
+            # if we get an AppendEntries message, reset election timeout and remember who's the boss
+
+            self._election_timeout_ms = random.randint(self._election_timeout_ms_min, self._election_timeout_ms_max)
+            LOG.debug("got AppendEntries msg: election timeout reset: %d", self._election_timeout_ms)
+
             msg: AppendEntriesMessage = AppendEntriesMessage.from_bytes(bytes_)
             current_term: int = self._node_persistent_state.get_term()
             # Reply false if term < currentTerm (§5.1)
