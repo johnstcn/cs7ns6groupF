@@ -27,8 +27,8 @@ def raft_init():
         peers.append(p)
 
     prev_state = NodePersistentState.load(state)
-    state_machine = DummyStateMachine()
-    node = Node(node_id, prev_state, peers, state_machine)
+    conn = operation.connect('./test.db')
+    node = Node(node_id, prev_state, peers, conn)
     node_thread = threading.Thread(target=node.start, args=[self_host, self_port])
     node_thread.daemon = True
     node_thread.start()
