@@ -50,7 +50,7 @@ class Node(object):
 
     def __init__(self, node_id: int, persistent_state: 'NodePersistentState', peers: List[Peer],
                  dbconn: sqlite3.Connection,
-                 election_timeout_ms_min: int = 2000, election_timeout_ms_max: int = 10000,
+                 election_timeout_ms_min: int = 3000, election_timeout_ms_max: int = 6000,
                  loop_interval_ms: int = 1000):
         LOG.debug("Node init node_id: %d peers:%s persistent_state: %s", node_id, peers, persistent_state._fpath)
         self._node_id: int = node_id
