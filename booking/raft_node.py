@@ -214,8 +214,8 @@ class Node(object):
         LOG.debug("Node handle_append_entries bytes:%s", bytes_)
         with self._lock:
             if self._state == Node.STATE_LEADER:
-                self._should_step_down = True
-                LOG.warning("node_id:%s is leader but got AppendEntries, stepping down")
+                LOG.warning("node_id:%s is leader but got AppendEntries, stepping down", self._node_id)
+                self._state = Node.STATE_FOLLOWER
                 return 0, False
 
             # if we get an AppendEntries message, reset election timeout and remember who's the boss
@@ -234,7 +234,8 @@ class Node(object):
             try:
                 existing_entry = existing_logs[msg.prev_log_idx]
             except IndexError:
-                LOG.debug('handle_append_entries: node_id:%d did not find existing entry with idx:%d', self._node_id, msg.prev_log_idx)
+                LOG.debug('handle_append_entries: node_id:%d did not find existing entry with idx:%d', self._node_id,
+                          msg.prev_log_idx)
                 return current_term, False
 
             if existing_entry._term != msg.prev_log_term:
@@ -242,7 +243,8 @@ class Node(object):
                 # and all that follow it (§5.3)
                 pruned_logs = existing_logs[:msg.prev_log_idx + 1]
                 self._node_persistent_state.set_logs(pruned_logs)
-                LOG.debug('handle_append_entries: node_id:%d did not find existing entry with idx:%d', self._node_id, msg.prev_log_idx)
+                LOG.debug('handle_append_entries: node_id:%d did not find existing entry with idx:%d', self._node_id,
+                          msg.prev_log_idx)
                 return current_term, False
 
             last_commit_idx = len(existing_logs) - 1
