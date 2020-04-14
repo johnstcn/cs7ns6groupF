@@ -249,6 +249,7 @@ class Node(object):
             # reinitialize leader volatile state after an election
             last_log_idx = len(self._node_persistent_state.get_logs())
             self._leader_volatile_state = LeaderVolatileState(last_log_idx, self._peers)
+            LOG.debug("init leader volatile state: %s", self._leader_volatile_state)
 
     def is_candidate(self) -> bool:
         with self._lock:

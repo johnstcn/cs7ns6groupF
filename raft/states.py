@@ -33,6 +33,9 @@ class LeaderVolatileState(object):
     def get_match_idx(self, k: int) -> int:
         return self._match_idx[k]
 
+    def __str__(self):
+        return "nextIndex:%s matchIndex:%s" % (self._next_idx, self._match_idx)
+
 
 class NodeVolatileState(object):
     """
