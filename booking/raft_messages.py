@@ -96,21 +96,18 @@ class DbEntriesMessage(object):
     # Database entry message class. Use to help with paring message in relation to Database.
     # """
 
-    def __init__(self, room: int, booking_time: int):
+    def __init__(self, room: int):
         self.room: int = room
-        self.booking_timestamp: int = booking_time
 
     def __bytes__(self):
-        return b'append %d %d' % (
-            self.room, self.booking_timestamp)
+        return b'append %d' % (self.room)
 
     def __repr__(self):
         return str(bytes(self))
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
-        bytes_ = bytes_.lstrip(b'db ')
+        bytes_ = bytes_.lstrip(b'append ')
         parts = bytes_.split(b' ')  # entry may contain spaces
         room: int = int(parts.pop(0))
-        booking_timestamp: int = int(parts.pop(0))
-        return DbEntriesMessage(room, booking_timestamp)
+        return DbEntriesMessage(room)
