@@ -1,8 +1,9 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, abort, make_response
 from forms.login import LoginForm
 import operation
 import os
 from raft_example import *
+from raft_messages import DbEntriesMessage
 from raft_peer import Peer
 from raft_rpc_client import RpcClient
 import random
@@ -16,7 +17,7 @@ def raft_init():
     peer_value = os.environ['PEERS'].split(' ')
     self_info = os.environ['SELF']
     node_id, self_host, self_port = parse_peer(self_info)
-    random.seed(node_id) # for some measure of predictability
+    random.seed(node_id)  # for some measure of predictability
     state = './state.json'
     socketserver.TCPServer.allow_reuse_address = True
     peers = []
@@ -35,6 +36,7 @@ def raft_init():
 
 raft_init()
 
+
 @sv.route('/user/<name>')
 def user(name):
     return render_template('user.html', name=name)
@@ -50,6 +52,40 @@ def login():
             username = request.form.get('username')
         return redirect('/search')
     return render_template('login.html', form=form)
+
+
+@sv.route('/api/bookings', methods=['GET', 'POST'])
+def api_bookings():
+    rpc_client, peer = rpc_set_up()
+    conn = operation.connect('./test.db')
+    table_name = 'room'
+    unoccupied = [t[1] for t in operation.select(conn, table_name)]
+    occupied = [t[1] for t in operation.select(conn, table_name, 'occupied')]
+    if request.method == 'GET':
+        return jsonify({
+            'occupied': occupied,
+            'unoccupied': unoccupied,
+        })
+
+    if request.method == 'POST':
+        requested_room_id_str = request.values.get('room_id')
+        if requested_room_id_str is None:
+            abort(make_response(jsonify(message="room_id parameter must be specified"), 400))
+            return
+
+        requested_room_id = int(requested_room_id_str)
+        if requested_room_id in occupied:
+            abort(make_response(jsonify(message="roomid:%d already occupied" % (requested_room_id)), 400))
+
+        booking_request_msg = DbEntriesMessage(requested_room_id)
+        _, ok = rpc_client.send(peer, booking_request_msg)
+        if not ok:
+            abort(make_response(jsonify(message="unable to send booking request to raft"), 500))
+            return
+
+        return jsonify(message="successfully booked")
+
+    abort(make_response(jsonify(message="only GET and POST methods supported"), 405))
 
 
 @sv.route('/search', methods=['GET', 'POST'])
