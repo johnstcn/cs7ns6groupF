@@ -42,7 +42,20 @@ def search():
             if request.values.get(str(idx)) == 'Y':
                 # result[idx] = operation.update(conn, table_name, idx)
                 message_sent, success = rpc_client.send(peer, b"db %d" % int(idx))
-                return redirect(url_for('.success_book', message=message_sent, s=success))
+                if success == 'False':
+                    if message_sent != 0:
+                        if message_sent is not unoccupied_room_id:
+                            # Assuming leader ID --> Re-send request to leader
+                            peer_id, host, port = parse_peer(message_sent)
+                            p = Peer(peer_id, host, port)
+                            message_sent, success = rpc_client.send(p, b"db %d" % int(idx))
+                        else:
+                            return redirect(url_for('.success_book', message=message_sent, s=success))
+                    else:
+                        # By pass conditional for now until can receive leader id.
+                        return redirect(url_for('.success_book', message="redirection to leader", s=False))
+                else:
+                    return redirect(url_for('.success_book', message=message_sent, s=success))
 
         if len(result):
             for idx, flag in result.items():
@@ -66,7 +79,7 @@ def test_raft():
 def success_book():
     messages = request.args['message']
     success = request.args['s']
-    if success == 0:
+    if success == 'True':
         return "Successfully booked " + messages + " room"
     else:
         return "Unsuccessfully booked " + messages + " room"
