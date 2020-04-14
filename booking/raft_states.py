@@ -163,9 +163,9 @@ class Entry(object):
     Entry represents a single log entry.
     """
 
-    def __init__(self, term: int, data: BookingData):
+    def __init__(self, term: int, data: bytes):
         self._term: int = term
-        self._data: BookingData = data
+        self._data: bytes = data
 
     def __str__(self) -> str:
         d = {
@@ -178,3 +178,8 @@ class Entry(object):
         if not isinstance(o, Entry):
             return False
         return (self._term == o._term) and (self._data == o._data)
+
+    @classmethod
+    def from_bytes(self, _bytes):
+        d = json.loads(_bytes)
+        return Entry(d['term'], d['data'])
