@@ -4,6 +4,8 @@ import json
 import logging
 from typing import Optional, List, Dict
 
+from peer import Peer
+
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
@@ -15,9 +17,9 @@ class LeaderVolatileState(object):
         matchIndex[]: for each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically)
     """
 
-    def __init__(self):
-        self._next_idx: Dict[int, int] = {}
-        self._match_idx: Dict[int, int] = {}
+    def __init__(self, last_log_index: int, known_peers: List[Peer]):
+        self._next_idx: Dict[int, int] = { peer : last_log_index + 1 for peer in known_peers }
+        self._match_idx: Dict[int, int] = { peer: 0 for peer in known_peers }
 
     def set_next_idx(self, k: int, v: int):
         self._next_idx[k] = v
