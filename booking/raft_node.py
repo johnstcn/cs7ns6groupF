@@ -227,15 +227,46 @@ class Node(object):
 
     def handle_database_request(self, bytes_: bytes):
         LOG.debug("Node handle_database_request bytes:%s", bytes_)
-        with self._lock:
-            # Get some request for database from flask-client probably
-            # TODO Should take room from flask and initiate append logs for room booking
-            msg: DbEntriesMessage = DbEntriesMessage.from_bytes(bytes_)
-            table_name = 'room'
-            conn = operation.connect('/app/raft/db/test.db')
-            result = operation.update(conn, table_name, msg)
+        if not self.is_leader():
+            # TODO: return the leader ID
+            return 0, False
 
-        return msg, result
+        with self._lock:
+            # sanity check: we want it to be a valid message before we commit it
+            msg: DbEntriesMessage = DbEntriesMessage.from_bytes(bytes_)
+            current_term = self._node_persistent_state.get_term()
+            new_entry = Entry(current_term, bytes(msg))
+            log_idx = self._node_persistent_state.append_log(new_entry)
+
+            append_msg = AppendEntriesMessage(
+                self._node_persistent_state.get_term(),
+                self._node_id,
+                log_idx,
+                current_term,
+                self._node_volatile_state.get_commit_idx(),
+                new_entry,
+            )
+            acks_required: int = int((len(self._peers) / 2) + 1)
+            acks_received: int = 0
+            for peer in self._peers:
+                peer_term, ok = self._client.send(peer, append_msg)
+                # TODO: check peer term to see if we need to step down
+                if not ok:
+                    LOG.warning("handle_database_request: peer:%s (term:%d) failed to ack AppendEntries msg:%s", peer,
+                                peer_term, append_msg)
+                else:
+                    acks_received += 1
+
+            if acks_required < acks_required:
+                LOG.error("handle_database_request: insufficient acks for request %s: got %d, want %d", msg,
+                          acks_received, acks_required)
+                return 0, False
+
+            return log_idx, True
+            # # at this point, we can safely commit to our own log
+            # table_name = 'room'
+            # conn = operation.connect('/app/raft/db/test.db')
+            # result = operation.update(conn, table_name, msg)
 
     def is_leader(self) -> bool:
         with self._lock:
