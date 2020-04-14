@@ -268,7 +268,9 @@ class Node(object):
             our_last_log_idx, _ = self._node_persistent_state.get_last_log()
 
             if our_last_log_idx > msg.last_log_idx:
-                LOG.debug("Node handle_request_vote: candidate not up to date: node_id:%s")
+                LOG.debug(
+                    "Node handle_request_vote: candidate not up to date: our_last_log_idx:%d log_idx:%s node_id:%s",
+                    our_last_log_idx, msg.last_log_idx, msg.candidate_id)
                 return current_term, False
 
             LOG.info("Node handle_request_vote: giving a vote to node_id:%d", msg.candidate_id)
@@ -351,7 +353,7 @@ class Node(object):
             # send RequestVote RPC to all other servers
             current_term = self._node_persistent_state.get_term()
             logs = self._node_persistent_state.get_logs()
-            last_log_idx = len(logs) - 1
+            last_log_idx = max(len(logs) - 1, 0)
             try:
                 last_log_term = logs[-1]._term
             except IndexError:
