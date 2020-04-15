@@ -148,53 +148,56 @@ class Node(object):
         if not self.is_leader():
             return
 
-        with self._lock:
-            for peer in self._peers:
-                self.sync_peer(peer)
+        for peer in self._peers:
+            threading.Thread(target=self.sync_peer, args=(peer,)).start()
 
-    def sync_peer(self, peer) -> bool:
-        # If last log index ≥ nextIndex for a follower: send
-        # AppendEntries RPC with log entries starting at nextIndex
-        all_logs: List[Entry] = self._node_persistent_state.get_logs()
-        if len(all_logs) == 0:
-            return False  # nothing to replicate
+    def sync_peer(self, peer):
+        while True:
+            start_ms: int = int(time.time() * 1000)
+            with self._lock:
+                if self._state != Node.STATE_LEADER:
+                    LOG.info("node_id:%d sync_peer: no longer leader, stopping", self._node_id)
+                    return
+                # If last log index ≥ nextIndex for a follower: send
+                # AppendEntries RPC with log entries starting at nextIndex
+                all_logs: List[Entry] = self._node_persistent_state.get_logs()
+                if len(all_logs) == 0:
+                    return  # nothing to replicate
 
-        current_term = self._node_persistent_state.get_term()
-        commit_idx = self._node_volatile_state.get_commit_idx()
-        synced = False
-        while not synced:
-            peer_next_idx: int = self._leader_volatile_state.get_next_idx(peer)
-            if len(all_logs) <= peer_next_idx:
-                return False  # peer is up to date as far as we can tell
+                current_term = self._node_persistent_state.get_term()
+                commit_idx = self._node_volatile_state.get_commit_idx()
+                peer_next_idx: int = self._leader_volatile_state.get_next_idx(peer)
+                LOG.debug("sync_peer:%s current_term:%d commit_idx:%d peer_next_idx:%d",
+                          peer, current_term, commit_idx, peer_next_idx)
+                if len(all_logs) <= peer_next_idx:
+                    return False  # peer is up to date as far as we can tell
 
-            LOG.debug("sync_peer:%s current_term:%d commit_idx:%d peer_next_idx:%d", peer, current_term, commit_idx,
-                      peer_next_idx)
-
-            # if we get here, need to replicate logs from nextIndex onwards
-            # for now, just doing one at a time
-            next_log_to_replicate = all_logs[peer_next_idx - 1]
-            prev_log_idx = peer_next_idx - 1
-            prev_log_term = all_logs[prev_log_idx]._term
-            msg: AppendEntriesMessage = AppendEntriesMessage(
-                current_term,
-                self._node_id,
-                prev_log_idx,
-                prev_log_term,
-                commit_idx,
-                next_log_to_replicate,
-            )
-            _, ok = self._client.send(peer, msg)
-            if ok:
-                # If successful: update nextIndex and matchIndex for
-                # follower (§5.3)
-                synced = True
-                self._leader_volatile_state.set_next_idx(peer, peer_next_idx + 1)
-            else:
-                # If AppendEntries fails because of log inconsistency:
-                # decrement nextIndex and retry (§5.3)
-                self._leader_volatile_state.set_next_idx(peer, max(0, peer_next_idx - 1))
-            time.sleep(1)
-        return synced
+                # if we get here, need to replicate logs from nextIndex onwards
+                # for now, just doing one at a time
+                next_log_to_replicate = all_logs[peer_next_idx - 1]
+                prev_log_idx = peer_next_idx - 1
+                prev_log_term = all_logs[prev_log_idx]._term
+                msg: AppendEntriesMessage = AppendEntriesMessage(
+                    current_term,
+                    self._node_id,
+                    prev_log_idx,
+                    prev_log_term,
+                    commit_idx,
+                    next_log_to_replicate,
+                )
+                _, ok = self._client.send(peer, msg)
+                if ok:
+                    # If successful: update nextIndex and matchIndex for
+                    # follower (§5.3)
+                    self._leader_volatile_state.set_next_idx(peer, peer_next_idx + 1)
+                    return
+                else:
+                    # If AppendEntries fails because of log inconsistency:
+                    # decrement nextIndex and retry (§5.3)
+                    self._leader_volatile_state.set_next_idx(peer, max(0, peer_next_idx - 1))
+            elapsed_ms: int = start_ms - int(time.time() * 1000)
+            delta = max(0, self._loop_interval_ms - elapsed_ms)
+            time.sleep(delta / 1000)
 
     def get_election_timeout_ms(self):
         with self._lock:
