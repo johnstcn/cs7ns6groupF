@@ -112,10 +112,10 @@ class Node(object):
             while True:
                 curr_last_applied = self._node_volatile_state.get_last_applied()
                 LOG.debug("Node do_regular commit_idx:%d last_applied:%d", curr_commit_idx, curr_last_applied)
-                if curr_commit_idx >= curr_last_applied:
+                if curr_commit_idx <= curr_last_applied:
                     break
                 curr_last_applied += 1
-                entry: Entry = self._node_persistent_state.get_logs()[curr_last_applied]
+                entry: Entry = self._node_persistent_state.get_logs()[curr_last_applied-1]
                 db_msg = DbEntriesMessage.from_bytes(entry._data)
                 operation.update(self._dbconn, "room", db_msg.room)
                 self._node_volatile_state.set_last_applied(curr_last_applied)
@@ -239,6 +239,7 @@ class Node(object):
             # if we have no entry it is just a heartbeat
             if msg.entry is None:
                 self._leader_id = int(msg.leader_id)
+                self._node_volatile_state.set_commit_idx(msg.leader_commit_idx)
                 return current_term, True
 
             existing_logs: List[Entry] = self._node_persistent_state.get_logs()
