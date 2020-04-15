@@ -228,6 +228,13 @@ class Node(object):
             if msg.term < self._node_persistent_state.get_term():
                 return current_term, False
 
+            # If RPC request or response contains term T > currentTerm:
+            # set currentTerm = T, convert to follower (§5.1)
+            if msg.term > current_term:
+                LOG.info("node_id:%s current_term:%d -> %d", self._node_id, current_term, msg.term)
+                current_term = msg.term
+                self._node_persistent_state.set_term(current_term)
+
             # if we have no entry it is just a heartbeat
             if msg.entry is None:
                 self._leader_id = int(msg.leader_id)
