@@ -96,7 +96,6 @@ class Node(object):
             self.do_regular()
             self.do_follower()
             self.do_candidate()
-            self.do_leader()
             time.sleep(self._loop_interval_ms / 1000)
             if not self.is_leader():
                 self.decrease_election_timeout()
@@ -143,13 +142,6 @@ class Node(object):
         # if election timeout elapses: start new election
         if self.get_election_timeout_ms() <= 0:
             self.become_candidate()
-
-    def do_leader(self):
-        if not self.is_leader():
-            return
-
-        for peer in self._peers:
-            threading.Thread(target=self.sync_peer, args=(peer,)).start()
 
     def sync_peer(self, peer):
         while True:
@@ -351,6 +343,7 @@ class Node(object):
 
             for peer in self._peers:
                 threading.Thread(target=self.heartbeat, args=(peer,)).start()
+                threading.Thread(target=self.sync_peer, args=(peer,)).start()
 
     def is_candidate(self) -> bool:
         with self._lock:
