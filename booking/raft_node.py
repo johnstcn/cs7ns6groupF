@@ -172,7 +172,7 @@ class Node(object):
 
             # if we get here, need to replicate logs from nextIndex onwards
             # for now, just doing one at a time
-            next_log_to_replicate = all_logs[peer_next_idx-1]
+            next_log_to_replicate = all_logs[peer_next_idx - 1]
             prev_log_idx = peer_next_idx - 1
             prev_log_term = all_logs[prev_log_idx]._term
             msg: AppendEntriesMessage = AppendEntriesMessage(
