@@ -164,7 +164,7 @@ class Node(object):
         synced = False
         while not synced:
             peer_next_idx: int = self._leader_volatile_state.get_next_idx(peer)
-            if len(all_logs) < peer_next_idx:
+            if len(all_logs) <= peer_next_idx:
                 return False  # peer is up to date as far as we can tell
 
             LOG.debug("sync_peer:%s current_term:%d commit_idx:%d peer_next_idx:%d", peer, current_term, commit_idx,
