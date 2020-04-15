@@ -12,12 +12,15 @@ import threading
 
 sv = Blueprint("sv", __name__)  # initialise a Blueprint instance
 
+DBPATH = os.environ['DB_PATH']
+DBTABLE = 'room'
+DBCONN = operation.connect(DBPATH)
+operation.create_table(DBCONN, DBTABLE)
 
 def raft_init():
     peer_value = os.environ['PEERS'].split(' ')
     self_info = os.environ['SELF']
     state_path = os.environ['RAFT_STATE_PATH']
-    db_path = os.environ['DB_PATH']
     node_id, self_host, self_port = parse_peer(self_info)
     random.seed(node_id)  # for some measure of predictability
     socketserver.TCPServer.allow_reuse_address = True
@@ -28,8 +31,7 @@ def raft_init():
         peers.append(p)
 
     prev_state = NodePersistentState.load(state_path)
-    conn = operation.connect(db_path)
-    node = Node(node_id, prev_state, peers, conn)
+    node = Node(node_id, prev_state, peers, DBCONN)
     node_thread = threading.Thread(target=node.start, args=[self_host, self_port])
     node_thread.daemon = True
     node_thread.start()
@@ -58,11 +60,8 @@ def login():
 @sv.route('/api/bookings', methods=['GET', 'POST'])
 def api_bookings():
     rpc_client, peer = rpc_set_up()
-    dbpath = os.environ['DB_PATH']
-    conn = operation.connect(dbpath)
-    table_name = 'room'
-    unoccupied = [t[1] for t in operation.select(conn, table_name)]
-    occupied = [t[1] for t in operation.select(conn, table_name, 'occupied')]
+    unoccupied = [t[1] for t in operation.select(DBCONN, DBTABLE)]
+    occupied = [t[1] for t in operation.select(DBCONN, DBTABLE, 'occupied')]
     if request.method == 'GET':
         return jsonify({
             'occupied': occupied,
@@ -93,11 +92,8 @@ def api_bookings():
 @sv.route('/search', methods=['GET', 'POST'])
 def search():
     rpc_client, peer = rpc_set_up()
-    dbpath = os.environ['DB_PATH']
-    conn = operation.connect(dbpath)
-    table_name = 'room'
-    unoccupied = operation.select(conn, table_name)
-    occupied = operation.select(conn, table_name, 'occupied')
+    unoccupied = operation.select(DBCONN, DBTABLE)
+    occupied = operation.select(DBCONN, DBTABLE, 'occupied')
     labels = ['RoomID']
     occupied_room_id = [i[1] for i in occupied]
     unoccupied_room_id = [i[1] for i in unoccupied]
@@ -105,7 +101,7 @@ def search():
         result = dict()
         for idx in unoccupied_room_id:
             if request.values.get(str(idx)) == 'Y':
-                # result[idx] = operation.update(conn, table_name, idx)
+                # result[idx] = operation.update(DBCONN, table_name, idx)
                 message_sent, success = rpc_client.send(peer, b"db %d" % int(idx))
                 if success == 'False':
                     if message_sent != 0:
@@ -134,7 +130,7 @@ def search():
 
 @sv.route('/test_raft', methods=['GET'])
 def test_raft():
-    rpcClient, peer = raft_set_up()
+    rpcClient, peer = rpc_set_up()
     t, s = rpcClient.send(peer, b"db 101")
     data = {"Message Sent": t, "Success:": s}
     return data

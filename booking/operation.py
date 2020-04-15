@@ -38,15 +38,34 @@ def create_table(conn, table_name):
     try:
         c = conn.cursor()
         # Create table
-        c.execute('''CREATE TABLE {} (
+        create_sql = '''
+        CREATE TABLE IF NOT EXISTS {table_name} (
                         ID INTEGER PRIMARY KEY autoincrement, 
-                        RoomID INTEGER NOT NULL,  
+                        RoomID INTEGER UNIQUE NOT NULL,  
                         RoomState CHAR(12) NOT NULL, 
-                        BookTime DOUBLE)
-                        '''.format(table_name))
-
+                        BookTime DOUBLE);
+        '''.format(table_name=table_name)
+        seed_sql = '''
+        INSERT OR IGNORE INTO {table_name} (RoomID, RoomState) VALUES 
+            (101, 'unoccupied'),
+            (102, 'unoccupied'), 
+            (103, 'unoccupied'),
+            (104, 'unoccupied'),
+            (105, 'unoccupied'),
+            (106, 'unoccupied'),
+            (201, 'occupied'),
+            (202, 'occupied'), 
+            (203, 'occupied'),
+            (204, 'occupied'),
+            (205, 'occupied'),
+            (206, 'occupied')
+        ;
+        '''.format(table_name=table_name)
+        c.execute(create_sql)
+        logger.debug('Created table in database')
+        c.execute(seed_sql)
+        logger.debug('Seeded table in database')
         conn.commit()
-        logger.debug('Create table in database')
 
     except Exception as e:
         logger.warning("Fail to create table in database")
