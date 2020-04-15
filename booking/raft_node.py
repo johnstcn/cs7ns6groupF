@@ -192,7 +192,8 @@ class Node(object):
             else:
                 # If AppendEntries fails because of log inconsistency:
                 # decrement nextIndex and retry (§5.3)
-                self._leader_volatile_state.set_next_idx(peer, peer_next_idx - 1)
+                self._leader_volatile_state.set_next_idx(peer, max(0, peer_next_idx - 1))
+            time.sleep(1)
         return synced
 
     def get_election_timeout_ms(self):
