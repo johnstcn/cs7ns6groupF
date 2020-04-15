@@ -117,7 +117,7 @@ class Node(object):
                 curr_last_applied += 1
                 entry: Entry = self._node_persistent_state.get_logs()[curr_last_applied]
                 db_msg = DbEntriesMessage.from_bytes(entry._data)
-                operation.insert(self._dbconn, "room", db_msg.room, 'occupied')
+                operation.update(self._dbconn, "room", db_msg.room)
                 self._node_volatile_state.set_last_applied(curr_last_applied)
 
     def do_follower(self):
@@ -303,7 +303,7 @@ class Node(object):
             msg: DbEntriesMessage = DbEntriesMessage.from_bytes(bytes_)
             for p in self._peers:
                 if p._peer_id == self._leader_id:
-                    threading.Thread(target=self._client.send, args=(p,msg)).start()
+                    threading.Thread(target=self._client.send, args=(p, msg)).start()
 
             return -2, False
 
