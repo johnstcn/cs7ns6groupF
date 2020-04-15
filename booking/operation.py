@@ -19,7 +19,7 @@ def connect(db):
     :param db: str, e.g. 'test.db'
     """
     try:
-        conn = sqlite3.connect(db)
+        conn = sqlite3.connect(db, check_same_thread=False)
         logger.debug('Connecting to database')
 
         return conn

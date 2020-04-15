@@ -70,6 +70,7 @@ class Node(object):
         self._election_timeout_ms_max: int = election_timeout_ms_max
         self._loop_interval_ms: int = loop_interval_ms
         self._votes = 0
+        self._leader_id: int = None
 
     def start(self, host: str, port: int):
         LOG.debug("Node start host:%s port:%d", host, port)
@@ -229,6 +230,7 @@ class Node(object):
 
             # if we have no entry it is just a heartbeat
             if msg.entry is None:
+                self._leader_id = int(msg.leader_id)
                 return current_term, True
 
             existing_logs: List[Entry] = self._node_persistent_state.get_logs()
@@ -252,6 +254,7 @@ class Node(object):
 
             last_commit_idx = self._node_persistent_state.append_log(msg.entry)
             self._node_volatile_state.set_commit_idx(min(msg.leader_commit_idx, last_commit_idx))
+            self._leader_id = int(msg.leader_id)
 
             return current_term, True
 
@@ -289,7 +292,13 @@ class Node(object):
         if not self.is_leader():
             # TODO: return the leader ID
             LOG.warning("handle_database_request: not leader")
-            return -1, False
+            LOG.warning("leader is %d", self._leader_id)
+            msg: DbEntriesMessage = DbEntriesMessage.from_bytes(bytes_)
+            for p in self._peers:
+                if p._peer_id == self._leader_id:
+                    threading.Thread(target=self._client.send, args=(p,msg)).start()
+
+            return -2, False
 
         with self._lock:
             # sanity check: we want it to be a valid message before we commit it
@@ -321,7 +330,7 @@ class Node(object):
                 LOG.error("handle_database_request: insufficient acks for request %s: got %d, want %d", msg,
                           acks_received, acks_required)
                 return 0, False
-
+            operation.update(self._dbconn, "room", msg.room)
             return log_idx, True
 
     def is_leader(self) -> bool:
