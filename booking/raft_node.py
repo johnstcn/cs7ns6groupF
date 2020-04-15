@@ -113,7 +113,7 @@ class Node(object):
                 curr_last_applied = self._node_volatile_state.get_last_applied()
                 LOG.debug("Node do_regular commit_idx:%d last_applied:%d", curr_commit_idx, curr_last_applied)
                 if curr_commit_idx > curr_last_applied:
-                    entries =  self._node_persistent_state.get_logs()
+                    entries = self._node_persistent_state.get_logs()
                     print(entries)
                     if not entries:
                         LOG.debug("Can't work with empty logs")
@@ -125,7 +125,6 @@ class Node(object):
                     self._node_volatile_state.set_last_applied(curr_last_applied)
                 else:
                     break
-
 
     def do_follower(self):
         if not self.is_follower():
@@ -336,17 +335,22 @@ class Node(object):
                 self._node_volatile_state.get_commit_idx(),
                 new_entry,
             )
-            acks_required: int = int((len(self._peers) / 2) + 1)
+            acks_required: int = int(len(self._peers) / 2)
             acks_received: int = 0
             for peer in self._peers:
-                peer_term, ok = self._client.send(peer, append_msg)
-                # TODO: check peer term to see if we need to step down
-                if not ok:
-                    LOG.warning("handle_database_request: peer:%s (term:%d) failed to ack AppendEntries msg:%s", peer,
-                                peer_term, append_msg)
-                else:
-                    acks_received += 1
-                    self._leader_volatile_state.set_match_idx(peer, log_idx)
+                try:
+                    peer_term, ok = self._client.send(peer, append_msg)
+                    # TODO: check peer term to see if we need to step down
+                    if not ok:
+                        LOG.warning("handle_database_request: peer:%s (term:%d) failed to ack AppendEntries msg:%s",
+                                    peer,
+                                    peer_term, append_msg)
+                    else:
+                        acks_received += 1
+                        self._leader_volatile_state.set_match_idx(peer, log_idx)
+                except Exception as e:
+                    LOG.error("handle_database_request: peer:%s failed to ack AppendEntries msg:%s error:%s",
+                              peer, append_msg, e)
 
             if acks_received < acks_required:
                 LOG.error("handle_database_request: insufficient acks for request %s: got %d, want %d", msg,
