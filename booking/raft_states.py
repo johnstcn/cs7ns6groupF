@@ -126,9 +126,10 @@ class NodePersistentState(object):
         return self._logs
 
     def append_log(self, log) -> int:
+        curr_log_idx = len(self._logs)
         self._logs.append(log)
         self._save()
-        return self._logs.index(log)
+        return curr_log_idx + 1
 
     def set_logs(self, logs):
         self._logs = [l for l in logs]
