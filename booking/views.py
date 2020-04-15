@@ -16,9 +16,10 @@ sv = Blueprint("sv", __name__)  # initialise a Blueprint instance
 def raft_init():
     peer_value = os.environ['PEERS'].split(' ')
     self_info = os.environ['SELF']
+    state_path = os.environ['RAFT_STATE_PATH']
+    db_path = os.environ['DB_PATH']
     node_id, self_host, self_port = parse_peer(self_info)
     random.seed(node_id)  # for some measure of predictability
-    state = './state.json'
     socketserver.TCPServer.allow_reuse_address = True
     peers = []
     for i, peer_str in enumerate(peer_value):
@@ -26,8 +27,8 @@ def raft_init():
         p = Peer(peer_id, host, port)
         peers.append(p)
 
-    prev_state = NodePersistentState.load(state)
-    conn = operation.connect('./test.db')
+    prev_state = NodePersistentState.load(state_path)
+    conn = operation.connect(db_path)
     node = Node(node_id, prev_state, peers, conn)
     node_thread = threading.Thread(target=node.start, args=[self_host, self_port])
     node_thread.daemon = True
@@ -57,7 +58,8 @@ def login():
 @sv.route('/api/bookings', methods=['GET', 'POST'])
 def api_bookings():
     rpc_client, peer = rpc_set_up()
-    conn = operation.connect('./test.db')
+    dbpath = os.environ['DB_PATH']
+    conn = operation.connect(dbpath)
     table_name = 'room'
     unoccupied = [t[1] for t in operation.select(conn, table_name)]
     occupied = [t[1] for t in operation.select(conn, table_name, 'occupied')]
@@ -91,7 +93,8 @@ def api_bookings():
 @sv.route('/search', methods=['GET', 'POST'])
 def search():
     rpc_client, peer = rpc_set_up()
-    conn = operation.connect('./test.db')
+    dbpath = os.environ['DB_PATH']
+    conn = operation.connect(dbpath)
     table_name = 'room'
     unoccupied = operation.select(conn, table_name)
     occupied = operation.select(conn, table_name, 'occupied')
