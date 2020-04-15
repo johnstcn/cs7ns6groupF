@@ -183,6 +183,7 @@ class Node(object):
                     # If successful: update nextIndex and matchIndex for
                     # follower (§5.3)
                     self._leader_volatile_state.set_next_idx(peer, peer_next_idx + 1)
+                    self._leader_volatile_state.set_match_idx(peer, peer_next_idx)
                     return
                 else:
                     # If AppendEntries fails because of log inconsistency:
@@ -332,12 +333,15 @@ class Node(object):
                                 peer_term, append_msg)
                 else:
                     acks_received += 1
+                    self._leader_volatile_state.set_match_idx(peer, log_idx)
 
             if acks_required < acks_required:
                 LOG.error("handle_database_request: insufficient acks for request %s: got %d, want %d", msg,
                           acks_received, acks_required)
                 return 0, False
             operation.update(self._dbconn, "room", msg.room)
+            self._node_volatile_state.set_commit_idx(log_idx)
+
             return log_idx, True
 
     def is_leader(self) -> bool:
