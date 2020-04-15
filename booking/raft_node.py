@@ -112,13 +112,20 @@ class Node(object):
             while True:
                 curr_last_applied = self._node_volatile_state.get_last_applied()
                 LOG.debug("Node do_regular commit_idx:%d last_applied:%d", curr_commit_idx, curr_last_applied)
-                if curr_commit_idx <= curr_last_applied:
+                if curr_commit_idx > curr_last_applied:
+                    entries =  self._node_persistent_state.get_logs()
+                    print(entries)
+                    if not entries:
+                        LOG.debug("Can't work with empty logs")
+                        break
+                    curr_last_applied += 1
+                    entry: Entry = self._node_persistent_state.get_logs()[curr_last_applied - 1]
+                    db_msg = DbEntriesMessage.from_bytes(entry._data)
+                    operation.update(self._dbconn, "room", db_msg.room)
+                    self._node_volatile_state.set_last_applied(curr_last_applied)
+                else:
                     break
-                curr_last_applied += 1
-                entry: Entry = self._node_persistent_state.get_logs()[curr_last_applied-1]
-                db_msg = DbEntriesMessage.from_bytes(entry._data)
-                operation.update(self._dbconn, "room", db_msg.room)
-                self._node_volatile_state.set_last_applied(curr_last_applied)
+
 
     def do_follower(self):
         if not self.is_follower():
@@ -246,6 +253,7 @@ class Node(object):
             # Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
             if len(existing_logs) > 0:
                 try:
+                    LOG.debug("length of logs: %d", len(existing_logs))
                     existing_entry = existing_logs[msg.prev_log_idx - 1]
                 except IndexError:
                     LOG.debug('handle_append_entries: node_id:%d idx:%d out of range', self._node_id,
@@ -262,7 +270,10 @@ class Node(object):
                     return current_term, False
 
             last_commit_idx = self._node_persistent_state.append_log(msg.entry)
-            self._node_volatile_state.set_commit_idx(min(msg.leader_commit_idx, last_commit_idx))
+            if msg.leader_commit_idx > self._node_volatile_state.get_commit_idx():
+                self._node_volatile_state.set_commit_idx(min(msg.leader_commit_idx, last_commit_idx))
+            else:
+                self._node_volatile_state.set_commit_idx(last_commit_idx)
             self._leader_id = int(msg.leader_id)
 
             return current_term, True
@@ -315,11 +326,12 @@ class Node(object):
             current_term = self._node_persistent_state.get_term()
             new_entry = Entry(current_term, bytes(msg))
             log_idx = self._node_persistent_state.append_log(new_entry)
+            peer_idx = log_idx - 1
 
             append_msg = AppendEntriesMessage(
                 self._node_persistent_state.get_term(),
                 self._node_id,
-                log_idx,
+                peer_idx,
                 current_term,
                 self._node_volatile_state.get_commit_idx(),
                 new_entry,
@@ -336,10 +348,14 @@ class Node(object):
                     acks_received += 1
                     self._leader_volatile_state.set_match_idx(peer, log_idx)
 
-            if acks_required < acks_required:
+            if acks_received < acks_required:
                 LOG.error("handle_database_request: insufficient acks for request %s: got %d, want %d", msg,
                           acks_received, acks_required)
+                existing_logs: List[Entry] = self._node_persistent_state.get_logs()
+                pruned_logs = existing_logs[:peer_idx]
+                self._node_persistent_state.set_logs(pruned_logs)
                 return 0, False
+
             operation.update(self._dbconn, "room", msg.room)
             self._node_volatile_state.set_commit_idx(log_idx)
 
