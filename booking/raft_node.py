@@ -222,46 +222,43 @@ class Node(object):
             LOG.debug("got AppendEntries msg: election timeout reset: %d", self._election_timeout_ms)
 
             msg: AppendEntriesMessage = AppendEntriesMessage.from_bytes(bytes_)
+            LOG.debug(
+                "node_id:%s AppendEntriesMessage term:%d leader_id:%d prev_log_idx:%d prev_log_term:%d " +
+                "leader_commit_idx:%d entry:%s",
+                self._node_id, msg.term, msg.leader_id, msg.prev_log_idx, msg.prev_log_term, msg.leader_commit_idx,
+                msg.entry)
             current_term: int = self._node_persistent_state.get_term()
             # Reply false if term < currentTerm (§5.1)
             if msg.term < self._node_persistent_state.get_term():
                 return current_term, False
 
-            # Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
+            # if we have no entry it is just a heartbeat
+            if msg.entry is None:
+                return current_term, True
+
             existing_logs: List[Entry] = self._node_persistent_state.get_logs()
-            try:
-                existing_entry = existing_logs[msg.prev_log_idx]
-            except IndexError:
-                LOG.debug('handle_append_entries: node_id:%d did not find existing entry with idx:%d', self._node_id,
-                          msg.prev_log_idx)
-                return current_term, False
+            # Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
+            if len(existing_logs) > 0:
+                try:
+                    existing_entry = existing_logs[msg.prev_log_idx - 1]
+                except IndexError:
+                    LOG.debug('handle_append_entries: node_id:%d idx:%d out of range', self._node_id,
+                              msg.prev_log_idx)
+                    return current_term, False
 
-            if existing_entry._term != msg.prev_log_term:
-                # If an existing entry conflicts with a new one (same index but different terms), delete the existing entry
-                # and all that follow it (§5.3)
-                pruned_logs = existing_logs[:msg.prev_log_idx + 1]
-                self._node_persistent_state.set_logs(pruned_logs)
-                LOG.debug('handle_append_entries: node_id:%d did not find existing entry with idx:%d', self._node_id,
-                          msg.prev_log_idx)
-                return current_term, False
+                if existing_entry._term != msg.prev_log_term:
+                    # If an existing entry conflicts with a new one (same index but different terms),
+                    # delete the existing entry and all that follow it (§5.3)
+                    pruned_logs = existing_logs[:msg.prev_log_idx]
+                    self._node_persistent_state.set_logs(pruned_logs)
+                    LOG.debug('handle_append_entries: node_id:%d did not find existing entry with idx:%d',
+                              self._node_id, msg.prev_log_idx)
+                    return current_term, False
 
-            last_commit_idx = len(existing_logs) - 1
-            if msg.entry not in existing_logs:
-                last_commit_idx = self._node_persistent_state.append_log(msg.entry)
+            last_commit_idx = self._node_persistent_state.append_log(msg.entry)
+            self._node_volatile_state.set_commit_idx(min(msg.leader_commit_idx, last_commit_idx))
 
-            curr_commit_idx = self._node_volatile_state.get_commit_idx()
-            if msg.leader_commit_idx > curr_commit_idx:
-                new_commit_idx = min(msg.leader_commit_idx, last_commit_idx)
-                self._node_volatile_state.set_commit_idx(new_commit_idx)
-
-            # If AppendEntries RPC received from new leader: convert to follower
-            if self._state == Node.STATE_CANDIDATE:
-                LOG.debug(
-                    'handle_append_entries: node_id:%s got AppendEntries from new leader node_id:%s -- stepping down',
-                    self._node_id,
-                    msg.leader_id)
-                self._state = Node.STATE_FOLLOWER
-            return self._node_persistent_state.get_term(), True
+            return current_term, True
 
     def handle_request_vote(self, bytes_: bytes):
         LOG.debug("Node handle_request_vote bytes:%s", bytes_)
