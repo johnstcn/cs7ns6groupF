@@ -191,5 +191,6 @@ class Entry(object):
 
     @classmethod
     def from_bytes(self, _bytes):
-        term, data = _bytes.split(b' ', maxsplit=1)
-        return Entry(term, data)
+        term_bytes, data_bytes = _bytes.split(b' ', maxsplit=1)
+        term  = int(term_bytes)
+        return Entry(term, data_bytes)
