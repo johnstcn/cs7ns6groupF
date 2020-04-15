@@ -19,8 +19,8 @@ class LeaderVolatileState(object):
     """
 
     def __init__(self, last_log_index: int, known_peers: List[Peer]):
-        self._next_idx: Dict[Peer, int] = { peer : last_log_index + 1 for peer in known_peers }
-        self._match_idx: Dict[Peer, int] = { peer: 0 for peer in known_peers }
+        self._next_idx: Dict[Peer, int] = {peer: last_log_index + 1 for peer in known_peers}
+        self._match_idx: Dict[Peer, int] = {peer: 0 for peer in known_peers}
 
     def set_next_idx(self, k: Peer, v: int):
         self._next_idx[k] = v
@@ -85,9 +85,8 @@ class NodePersistentState(object):
             voted_for = json_obj.get('voted_for', None)
             logs = []
             for l in json_obj.get('logs', []):
-                term = l['term']
-                data = l['data']
-                logs.append(Entry(term, data))
+                entry = Entry.from_bytes(bytes(l, encoding='utf-8'))
+                logs.append(entry)
             return NodePersistentState(fpath, current_term, voted_for, logs)
 
     def __init__(self, fpath: str, current_term: int, voted_for: int, logs: List['Entry']):
@@ -137,7 +136,8 @@ class NodePersistentState(object):
 
     def get_last_log(self) -> (int, 'Entry'):
         try:
-            return self._logs[-1]
+            idx = len(self._logs)
+            return idx, self._logs[idx-1]
         except IndexError:
             return 0, None
 
@@ -185,7 +185,7 @@ class Entry(object):
         return b'%d %s' % (self._term, self._data)
 
     def __str__(self) -> str:
-        return str(bytes(self))
+        return self.__bytes__().decode('utf-8')
 
     def __eq__(self, o: object) -> bool:
         if not isinstance(o, Entry):
@@ -195,5 +195,5 @@ class Entry(object):
     @classmethod
     def from_bytes(self, _bytes):
         term_bytes, data_bytes = _bytes.split(b' ', maxsplit=1)
-        term  = int(term_bytes)
+        term = int(term_bytes)
         return Entry(term, data_bytes)
