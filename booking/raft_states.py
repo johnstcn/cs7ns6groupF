@@ -2,6 +2,7 @@
 import datetime
 import json
 import logging
+import os
 from typing import Optional, List, Dict
 
 from raft_peer import Peer
@@ -41,7 +42,7 @@ class NodeVolatileState(object):
     """
     Volatile state on all servers:
         commitIndex: index of highest log entry known to be committed (initialized to 0, increases monotonically)
-    lastApplied: index of highest log entry applied to state machine (initialized to 0, increases monotonically)
+        lastApplied: index of highest log entry applied to state machine (initialized to 0, increases monotonically)
     """
 
     def __init__(self):
@@ -75,9 +76,11 @@ class NodePersistentState(object):
         load persistent state from a file
         :param fpath: path of state. Created if it does not already exist.
         """
+        if not os.path.exists(fpath):
+            open(fpath, 'a').close()
         with open(fpath, 'r') as f:
             json_str = f.read()
-            json_obj = json.loads(json_str)
+            json_obj = json.loads(json_str or '{}')
             current_term = json_obj.get('current_term', 0)
             voted_for = json_obj.get('voted_for', None)
             logs = []
