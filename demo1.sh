@@ -16,7 +16,7 @@ DOCKER_COMPOSE_FILE="docker-compose.demo1.yml"
 #}
 
 function setup {
-    docker-compose -f "${DOCKER_COMPOSE_FILE}" up --detach
+    docker-compose -f "${DOCKER_COMPOSE_FILE}" up --build --force-recreate --detach
 }
 
 function dump_cluster_state {
