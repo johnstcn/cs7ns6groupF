@@ -1,50 +1,46 @@
 version: "3"
 services:
-    toxiproxy:
-        image: shopify/toxiproxy:latest
-        ports:
-            - "8474:8474"
     peer0:
-        image: cs7ns6-groupf-ipc:latest
-        build:
-            context: .
-            dockerfile: ipc.Dockerfile
-        ports: 
+        image: cs7ns6groupf:latest
+        build: .
+        ports:
+            - "5000:5000"
             - "9000:9000"
+        volumes:
+            - "${PWD}/data/:/data"
         environment:
-            PEER_ID: 0
-            PEERS: peer0:9000 toxiproxy:19001 toxiproxy:19002
-            QUORUM_WRITE: 2
-            QUORUM_READ: 1
-        depends_on:
-          - toxiproxy
-        
+            SELF_ID: 0
+            SELF: 0:peer0:9000
+            PEERS: 1:peer1:9001 2:peer2:9002
+            RAFT_STATE_PATH: /data/state_0.json
+            DB_PATH: /data/test_0.db
+
     peer1:
-        image: cs7ns6-groupf-ipc:latest
-        build:
-            context: .
-            dockerfile: ipc.Dockerfile
-        ports: 
+        image: cs7ns6groupf:latest
+        build: .
+        ports:
+            - "5001:5000"
             - "9001:9001"
+        volumes:
+            - "${PWD}/data/:/data"
         environment:
-            PEER_ID: 1
-            PEERS: toxiproxy:19000 peer1:9001 toxiproxy:19002
-            QUORUM_WRITE: 2
-            QUORUM_READ: 1
-        depends_on:
-          - toxiproxy
+            SELF_ID: 1
+            SELF: 1:peer1:9001
+            PEERS: 0:peer0:9000 2:peer2:9002
+            RAFT_STATE_PATH: /data/state_1.json
+            DB_PATH: /data/test_1.db
 
     peer2:
-        image: cs7ns6-groupf-ipc:latest
-        build:
-            context: .
-            dockerfile: ipc.Dockerfile
-        ports: 
+        image: cs7ns6groupf:latest
+        build: .
+        ports:
+            - "5002:5000"
             - "9002:9002"
-        environment: 
-            PEER_ID: 2
-            PEERS: toxiproxy:19000 toxiproxy:19001 peer2:9002
-            QUORUM_WRITE: 2
-            QUORUM_READ: 1
-        depends_on:
-          - toxiproxy
+        volumes:
+            - "${PWD}/data/:/data"
+        environment:
+            SELF_ID: 2
+            SELF: 2:peer2:9002
+            PEERS: 0:peer0:9000 1:peer1:9001
+            RAFT_STATE_PATH: /data/state_2.json
+            DB_PATH: /data/test_2.db

@@ -2,52 +2,74 @@
 set -euo pipefail
 
 DOCKER_COMPOSE_FILE="docker-compose.demo1.yml"
-TOXCLI=".bin/toxiproxy-cli"
-TOX_VERSION="v2.1.4"
-KERNEL=$(uname -s | tr '[:upper:]' '[:lower:]')
-TOXCLI_URL="https://github.com/Shopify/toxiproxy/releases/download/${TOX_VERSION}/toxiproxy-cli-${KERNEL}-amd64"
+#TOXCLI=".bin/toxiproxy-cli"
+#TOX_VERSION="v2.1.4"
+#KERNEL=$(uname -s | tr '[:upper:]' '[:lower:]')
+#TOXCLI_URL="https://github.com/Shopify/toxiproxy/releases/download/${TOX_VERSION}/toxiproxy-cli-${KERNEL}-amd64"
 
-function fetch_toxiproxy {
-    if [ ! -x "${TOXCLI}" ]; then
-        echo "Fetching toxiproxy-cli"
-        mkdir -p ".bin"
-        wget -q "${TOXCLI_URL}" -O $TOXCLI
-    fi
-}
+#function fetch_toxiproxy {
+#    if [ ! -x "${TOXCLI}" ]; then
+#        echo "Fetching toxiproxy-cli"
+#        mkdir -p ".bin"
+#        wget -q "${TOXCLI_URL}" -O $TOXCLI
+#    fi
+#}
 
 function setup {
     docker-compose -f "${DOCKER_COMPOSE_FILE}" up --detach
 }
 
+function dump_cluster_state {
+  echo "--- cluster state ---"
+  for n in $(seq 0 2); do
+    echo "node${n} state:"
+    echo state | nc localhost $((9000 + n))
+  done
+}
+
+function dump_raft_disk_state {
+  echo "--- raft persistent state ---"
+  for n in $(seq 0 2); do
+    echo "data/state_$n.json"
+    jq < "data/state_$n.json"
+  done
+}
+
+function dump_room_state {
+  echo "--- room $1 booking state ---"
+    for n in $(seq 0 2); do
+      echo "data/test_$n.db"
+      sqlite3 "data/test_$n.db" "select RoomID, RoomState from room where RoomID = $1;"
+  done
+}
+
 function teardown {
-    echo "--- BEGIN CONTAINER LOGS ---"
-    docker-compose -f "${DOCKER_COMPOSE_FILE}" logs -t
-    echo "--- END CONTAINER LOGS ---"
     docker-compose -f "${DOCKER_COMPOSE_FILE}" down -t 1
+    docker-compose -f "${DOCKER_COMPOSE_FILE}" rm -f
 }
 
 trap teardown EXIT
-fetch_toxiproxy
 setup
-# create proxy configurations
-$TOXCLI create peer0 -l toxiproxy:19000 -u peer0:9000
-$TOXCLI create peer1 -l toxiproxy:19001 -u peer1:9001
-$TOXCLI create peer2 -l toxiproxy:19002 -u peer2:9002
-# we need to wait for a second
-sleep 1
-# create some toxicity
-$TOXCLI toxic add peer0 -t latency -a latency=0
-$TOXCLI toxic add peer1 -t latency -a latency=500
-$TOXCLI toxic add peer2 -t latency -a latency=0
-# do a leader election
-echo -n "performing leader election: "
-echo vote | nc localhost 9000
-echo
-while true; do
-    LDR=$(echo ldr? | nc localhost 9000)
-    if [ ! -z "${LDR}" ]; then
-        echo "leader: ${LDR}"
-        break
-    fi
-    sleep 1
+
+echo -n "waiting for leader election"
+for i in $(seq 0 4); do
+  echo -n '.'
+  sleep 1
 done
+echo
+dump_cluster_state
+dump_raft_disk_state
+leader_port=$(echo state | nc localhost 9000 | grep LEADER | awk '{print $2}' | awk -F ':' '{print $3}')
+dump_room_state 101
+echo -n "booking room 101 via localhost:${leader_port} -> "
+echo "db 101" | nc localhost "$leader_port"
+echo
+echo -n "waiting for replication"
+for i in $(seq 0 4); do
+  echo -n '.'
+  sleep 1
+done
+echo
+dump_raft_disk_state
+dump_room_state 101
+
