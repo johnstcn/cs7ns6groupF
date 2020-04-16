@@ -55,9 +55,12 @@ class RpcServer(object):
             data: bytes = self.request.recv(1024).strip()
             # protocol looks like this:
             # VERB arg1 arg2 arg3... argn
-            verb, rest = data.split(b' ', maxsplit=1)
-            current_term, success = self._handlers[verb](rest.strip())
-            resp = b'%d %d' % (current_term, success)
+            if data.startswith(b'state'):
+                resp = self._handlers[b'state']()
+            else:
+                verb, rest = data.split(b' ', maxsplit=1)
+                current_term, success = self._handlers[verb](rest.strip())
+                resp = b'%d %d' % (current_term, success)
             self.request.sendall(resp)
 
         @classmethod

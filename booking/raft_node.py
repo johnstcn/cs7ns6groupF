@@ -54,6 +54,8 @@ class Node(object):
                  loop_interval_ms: int = 1000):
         LOG.debug("Node init node_id: %d peers:%s persistent_state: %s", node_id, peers, persistent_state._fpath)
         self._node_id: int = node_id
+        self._host = None
+        self._port = None
         self._node_persistent_state: NodePersistentState = persistent_state
         self._node_volatile_state: NodeVolatileState = NodeVolatileState()
         self._leader_volatile_state: Optional[LeaderVolatileState] = None
@@ -80,7 +82,10 @@ class Node(object):
                 b'vote': self.handle_request_vote,
                 b'append': self.handle_append_entries,
                 b'db': self.handle_database_request,
+                b'state': self.handle_state_request,
             }
+            self._host = host
+            self._port = port
             self._server = RpcServer(host, port, handlers)
             self._server.start()
 
@@ -364,6 +369,23 @@ class Node(object):
             self._node_volatile_state.set_commit_idx(log_idx)
 
             return log_idx, True
+
+    def handle_state_request(self) -> bytes:
+        if self._state == Node.STATE_LEADER:
+            my_state = "LEADER"
+        elif self._state == Node.STATE_CANDIDATE:
+            my_state = "CANDIATE"
+        else:
+            my_state = "FOLLOWER"
+        parts: List[str] = ["%s %d:%s:%d" % (my_state, self._node_id, self._host, self._port)]
+        for peer in self._peers:
+            if self._leader_id is not None and peer._peer_id == self._leader_id:
+                peer_state = "LEADER"
+            else:
+                peer_state = "FOLLOWER_OR_CANDIDATE"
+            parts.append("%s %d:%s:%d" % (peer_state, peer._peer_id, peer._host, peer._port))
+        parts.append("\n")
+        return bytes("\n".join(parts), encoding="utf-8")
 
     def is_leader(self) -> bool:
         with self._lock:

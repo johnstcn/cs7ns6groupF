@@ -7,6 +7,18 @@ from raft_states import Entry
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
+class StateMessage(object):
+    """
+    Invoked by clients to query cluster state.
+    """
+    def __str__(self):
+        return 'state'
+
+    def __bytes__(self):
+        return b'state'
+
+    def __repr__(self):
+        return str(self)
 
 class VoteMessage(object):
     """
