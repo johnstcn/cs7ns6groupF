@@ -62,8 +62,8 @@ dump_raft_disk_state
 leader_id=$(echo state | nc localhost 9000 | grep LEADER | awk '{print $2}' | awk -F ':' '{print $1}')
 leader_http_port=$((5000+leader_id))
 dump_room_state 101
-echo "killing one follower node"
 follower_id=$(echo 'state' | nc localhost 9000 | grep -i follower | awk '{print $2}' | awk -F ':' '{print $1}' | tail -1)
+echo "killing follower node ${follower_id}"
 docker-compose -f "${DOCKER_COMPOSE_FILE}" scale "peer${follower_id}=0"
 echo "booking state: "
 curl "http://localhost:${leader_http_port}/api/bookings" | jq '.'
@@ -78,4 +78,10 @@ done
 echo
 dump_raft_disk_state
 dump_room_state 101
+curl "http://localhost:${leader_http_port}/api/bookings" | jq '.'
+follower_id=$(echo 'state' | nc localhost 9000 | grep -i follower | awk '{print $2}' | awk -F ':' '{print $1}' | head -1)
+echo "killing follower node ${follower_id}"
+docker-compose -f "${DOCKER_COMPOSE_FILE}" scale "peer${follower_id}=0"
+echo -n "booking room 102 via localhost:${leader_http_port} -> "
+curl -XPOST "http://localhost:${leader_http_port}/api/bookings" --data "room_id=102"
 curl "http://localhost:${leader_http_port}/api/bookings" | jq '.'
