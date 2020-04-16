@@ -84,7 +84,7 @@ def api_bookings():
             abort(make_response(jsonify(message="unable to send booking request to raft"), 500))
             return
 
-        return jsonify(message="successfully booked")
+        return jsonify(message="booking request sent")
 
     abort(make_response(jsonify(message="only GET and POST methods supported"), 405))
 
