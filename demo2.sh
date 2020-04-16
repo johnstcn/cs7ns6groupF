@@ -59,13 +59,16 @@ done
 echo
 dump_cluster_state
 dump_raft_disk_state
-leader_port=$(echo state | nc localhost 9000 | grep LEADER | awk '{print $2}' | awk -F ':' '{print $3}')
+leader_id=$(echo state | nc localhost 9000 | grep LEADER | awk '{print $2}' | awk -F ':' '{print $1}')
+leader_http_port=$((5000+leader_id))
 dump_room_state 101
 echo "killing one follower node"
 follower_id=$(echo 'state' | nc localhost 9000 | grep -i follower | awk '{print $2}' | awk -F ':' '{print $1}' | tail -1)
 docker-compose -f "${DOCKER_COMPOSE_FILE}" scale "peer${follower_id}=0"
-echo -n "booking room 101 via localhost:${leader_port} -> "
-echo "db 101" | nc localhost "$leader_port"
+echo "booking state: "
+curl "http://localhost:${leader_http_port}/api/bookings" | jq '.'
+echo -n "booking room 101 via localhost:${leader_http_port} -> "
+curl -XPOST "http://localhost:${leader_http_port}/api/bookings" --data "room_id=101"
 echo
 echo -n "waiting for replication"
 for i in $(seq 0 4); do
@@ -75,4 +78,4 @@ done
 echo
 dump_raft_disk_state
 dump_room_state 101
-
+curl "http://localhost:${leader_http_port}/api/bookings" | jq '.'
