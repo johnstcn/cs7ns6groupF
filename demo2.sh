@@ -39,13 +39,17 @@ function dump_room_state {
   echo "--- room $1 booking state ---"
     for n in $(seq 0 2); do
       echo "data/test_$n.db"
-      sqlite3 "data/test_$n.db" "select RoomID, RoomState from room where RoomID = $1;"
+      sqlite3 "data/test_$n.db" "select RoomID, RoomState, BookTime from room where RoomID = $1;"
   done
 }
 
 function teardown {
     docker-compose -f "${DOCKER_COMPOSE_FILE}" down -t 1
     docker-compose -f "${DOCKER_COMPOSE_FILE}" rm -f
+}
+
+function wait_for_user {
+  read -p "Press enter to continue"
 }
 
 trap teardown EXIT
@@ -59,14 +63,16 @@ done
 echo
 dump_cluster_state
 dump_raft_disk_state
+wait_for_user
 leader_id=$(echo state | nc localhost 9000 | grep LEADER | awk '{print $2}' | awk -F ':' '{print $1}')
 leader_http_port=$((5000+leader_id))
 dump_room_state 101
+echo "booking state: "
+curl "http://localhost:${leader_http_port}/api/bookings" | jq '.'
+wait_for_user
 follower_id=$(echo 'state' | nc localhost 9000 | grep -i follower | awk '{print $2}' | awk -F ':' '{print $1}' | tail -1)
 echo "killing follower node ${follower_id}"
 docker-compose -f "${DOCKER_COMPOSE_FILE}" scale "peer${follower_id}=0"
-echo "booking state: "
-curl "http://localhost:${leader_http_port}/api/bookings" | jq '.'
 echo -n "booking room 101 via localhost:${leader_http_port} -> "
 curl -XPOST "http://localhost:${leader_http_port}/api/bookings" --data "room_id=101"
 echo
@@ -79,6 +85,7 @@ echo
 dump_raft_disk_state
 dump_room_state 101
 curl "http://localhost:${leader_http_port}/api/bookings" | jq '.'
+wait_for_user
 follower_id=$(echo 'state' | nc localhost 9000 | grep -i follower | awk '{print $2}' | awk -F ':' '{print $1}' | head -1)
 echo "killing follower node ${follower_id}"
 docker-compose -f "${DOCKER_COMPOSE_FILE}" scale "peer${follower_id}=0"

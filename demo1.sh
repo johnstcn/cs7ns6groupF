@@ -39,13 +39,17 @@ function dump_room_state {
   echo "--- room $1 booking state ---"
     for n in $(seq 0 2); do
       echo "data/test_$n.db"
-      sqlite3 "data/test_$n.db" "select RoomID, RoomState from room where RoomID = $1;"
+      sqlite3 "data/test_$n.db" "select RoomID, RoomState, BookTime from room where RoomID = $1;"
   done
 }
 
 function teardown {
     docker-compose -f "${DOCKER_COMPOSE_FILE}" down -t 1
     docker-compose -f "${DOCKER_COMPOSE_FILE}" rm -f
+}
+
+function wait_for_user {
+  read -p "Press enter to continue"
 }
 
 trap teardown EXIT
@@ -64,6 +68,7 @@ leader_http_port=$((5000+leader_id))
 dump_room_state 101
 echo "booking state: "
 curl "http://localhost:${leader_http_port}/api/bookings" | jq '.'
+wait_for_user
 echo -n "booking room 101 via localhost:${leader_http_port} -> "
 #echo "db 101" | nc localhost "$leader_port"
 curl -XPOST "http://localhost:${leader_http_port}/api/bookings" --data "room_id=101"
@@ -73,6 +78,13 @@ for i in $(seq 0 4); do
   echo -n '.'
   sleep 1
 done
+echo
+dump_raft_disk_state
+dump_room_state 101
+curl "http://localhost:${leader_http_port}/api/bookings" | jq '.'
+wait_for_user
+echo -n "trying to double-book room 101 via localhost:${leader_http_port} -> "
+curl -XPOST "http://localhost:${leader_http_port}/api/bookings" --data "room_id=101"
 echo
 dump_raft_disk_state
 dump_room_state 101
