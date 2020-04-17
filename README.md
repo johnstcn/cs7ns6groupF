@@ -1,54 +1,77 @@
 # cs7ns6groupF
 Repo to hold code for CS7NS6 Group F Project
 
-## ipc.py
+## What you need to run this
 
-This module handles inter-process communication (via TCP) and leader election (via Bully algorithm).
+ - Python >= 3.6
+ - virtualenv
+ - Docker (optional, recommended)
+ - Docker-compose (optional, recommended)
 
-It is designed to be used by other modules:
+If you are unable to use `virtualenv` to create a Python virtual environment for any reason, the requirements for the application are specified in `requirements.txt`.
 
-```
-all_peers = ["10.0.0.1:8000", "10.0.0.2:8000", "10.0.0.3:8000"]
-p = ipc.Process(0, all_peers)
-p.run() 
-```
+## Structure
+The application's code is contained within the `./booking` folder:
+ - File `app.py`  is the main application code.
+ - File `views.py` contain the various handlers for HTTP responses within the application.
+ - File `operation.py` contains code related to database operations shared across both the frontend application and the Raft middleware.
+ - Files`raft-*.py` contains code related to the Raft middleware.
+ 
+ Some other files (`ipc.py`, `multicast.py`, `models.py`) are legacy code and no longer required, but are included for reference. 
 
-You can also run `ipc.py` directly for a simple demo:
+## Setup
 
-```bash
-./ipc.py --id 0 --peers 10.0.0.1:8000 10.0.0.2:8000 10.0.0.3:8000 &
-./ipc.py --id 1 --peers 10.0.0.1:8000 10.0.0.2:8000 10.0.0.3:8000 &
-./ipc.py --id 2 --peers 10.0.0.1:8000 10.0.0.2:8000 10.0.0.3:8000 &
-# start voting
-echo vote | nc 10.0.0.1 8000
-# check for a leader
-echo ldr? | nc 10.0.0.2 8000
-# check health
-echo ok? | nc 10.0.0.3 8000
-```
-
-A more complete, automated example can also be run via `docker-compose`:
-
-```bash
-docker-compose -f docker-compose.demo1.yml up
+The below commands will set up a new Python virtual environment and install the required packages:
+```shell script
+virtualenv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-If you have GNU make available, you can also just run `make`.
+## Running in Docker (recommended)
 
-## sample demo
+It is recommended to use `docker-compose` to run this project.
 
-This is a small demo using `docker-compose` and [toxiproxy](https://github.com/Shopify/toxiproxy) to simulate latency. You can run it via `./demo1.sh`.
+To run the default setup for the application, simply run:
+```shell script
+docker-compose -f docker-compose.yml up --build
+```
 
-This script performs the following:
-1. Fetches `toxiproxy-cli` to `.bin/toxiproxy-cli` if not present
-2. Brings up `docker-compose.demo1.yml`
-3. Sets up the requires toxiproxy ingresses / egresses via `toxiproxy-cli`
-4. Triggers a leader election and prints the leader
-5. Brings down the `docker-compose` setup
+This will perform the following steps:
+ - Build the `cs7ns6groupf` container from `./Dockerfile`
+ - Create 3 instances of the `cs7ns6groupf` container: `peer0`, `peer1`, and `peer2`, each using different local files for the raft database and SQLite databse.
 
-## Combined Flask + IPC [02-04-2020]
-- IPC is an instance of class Processor in Flask. 
-- Only an instance in /search view
-- Still to write full integration
-- You can see peers connection and talking when on the /search page
-and can see 'ok'/'ack' messages when rooms booked.
+This will run forever until manually stopped with `Control-C`.
+
+## Demo Scripts
+Files `./demo1.sh` and `./demo2.sh` each perform the following:
+ - Stand up a cluster of the application using `docker-compose -f docker-compose.demoN.yml up --build`
+ - Perform a number of actions on the cluster
+ - Query various endpoints of the cluster and display the output.
+ 
+Note: to ensure a clean environment, you may need to remove all of the local data in between demoes. To do this, Run: `sudo rm -f data/*`
+
+The file `./Dockerfile` contains directives to build the `cs7ns6groupf` container with all the dependencies for the application included.
+It can be built on its own with the command:
+```shell script
+docker build -t cs7ns6groupf:latest .
+```
+
+## Running without Docker (the hard way)
+
+If you are unable to run Docker for whatever reason, you can instead run the code directly, which requires some initial setup.
+To run one instance of the application, first double-check you have performed the above `virtualenv` setup.
+
+Then, run the following command, substituting where appropriate:
+ - `DB_PATH`: path to the node's SQLite database
+ - `RAFT_STATE_PATH`: path to the node's Raft persistent state
+ - `SELF_ID`: node identifier (positive integer)
+ - `SELF`: the node identifier, hostname, and port for Raft, separated by a colon. Example: `0:localhost:9000`.
+ - `PEERS`: the peers in the node's cluster, specified in the same format as above.
+
+Full example invocation:
+```shell script
+DB_PATH=./data/0.db RAFT_STATE_PATH=./data/0.json SELF_ID=0 SELF=0:localhost:9000 PEERS='1:localhost:9001 2:localhost:9002' python ./app.py
+``` 
+
+Repeat this command multiple times to bring up multiple instances of the application.
